@@ -701,28 +701,34 @@
                         const batchResults = await Promise.all(
                             batch.map(async (plano) => {
                                 try {
-                                    // Buscar empenhos e relatórios de gestão (valor executado)
-                                    const [empenhos, relatorios] = await Promise.all([
-                                        fetchWithProxy(
-                                            `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                            proxyUrl
-                                        ).catch(() => []),
-                                        fetchWithProxy(
-                                            `${baseUrl}/relatorio_gestao_novo_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                            proxyUrl
-                                        ).catch(() => [])
-                                    ]);
+                                    // Buscar empenhos
+                                    const empenhos = await fetchWithProxy(
+                                        `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                        proxyUrl
+                                    ).catch(() => []);
 
-                                    // Calcular valor total executado (liberado) dos relatórios de gestão
-                                    const valorLiberado = relatorios.reduce(
-                                        (sum, rel) => sum + parseFloat(rel.valor_executado_relatorio_gestao_novo || 0),
-                                        0
-                                    );
+                                    // Para cada empenho, buscar documentos hábeis (valores liquidados/pagos)
+                                    let valorLiberado = 0;
+                                    const documentosHabeis = [];
+
+                                    for (const empenho of empenhos) {
+                                        const dhs = await fetchWithProxy(
+                                            `${baseUrl}/documento_habil_especial?id_empenho=eq.${empenho.id_empenho}`,
+                                            proxyUrl
+                                        ).catch(() => []);
+
+                                        documentosHabeis.push(...dhs);
+
+                                        // Somar valores dos documentos hábeis (valores liberados/pagos)
+                                        dhs.forEach(dh => {
+                                            valorLiberado += parseFloat(dh.valor_dh || 0);
+                                        });
+                                    }
 
                                     return {
                                         ...plano,
                                         empenhos,
-                                        relatorios,
+                                        documentosHabeis,
                                         valorLiberado
                                     };
                                 } catch (err) {
@@ -730,7 +736,7 @@
                                     return {
                                         ...plano,
                                         empenhos: [],
-                                        relatorios: [],
+                                        documentosHabeis: [],
                                         valorLiberado: 0
                                     };
                                 }
