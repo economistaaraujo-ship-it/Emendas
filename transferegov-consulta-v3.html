@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Consulta de Transferências Especiais - SEFAZ-ES</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234f46e5'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            color: #e5e5e5;
+        }
+        
+        .main-header {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+            border-bottom: 1px solid #333;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            color: white;
+        }
+        
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-title h1 {
+            font-size: 24px;
+            color: #e5e5e5;
+            font-weight: 600;
+        }
+        
+        .header-title p {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 30px;
+        }
+        
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .info-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+        
+        .info-banner-icon {
+            color: #60a5fa;
+            font-size: 20px;
+            margin-top: 2px;
+        }
+        
+        .info-banner-content {
+            flex: 1;
+        }
+        
+        .info-banner-title {
+            color: #e5e5e5;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .info-banner-text {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .control-group label {
+            font-size: 12px;
+            color: #9ca3af;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .control-group input, .control-group select {
+            padding: 10px 15px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #e5e5e5;
+            transition: all 0.3s;
+        }
+        
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            background: #333;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .control-group input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #2a2a2a;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #450a0a;
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #991b1b;
+        }
+        
+        .warning {
+            background: #713f12;
+            color: #fbbf24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f59e0b;
+        }
+        
+        .success {
+            background: #064e3b;
+            color: #6ee7b7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #10b981;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 100%);
+            border: 1px solid #404040;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.3);
+        }
+        
+        .stat-card h3 {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card .value {
+            font-size: 26px;
+            font-weight: bold;
+        }
+        
+        .stat-card.highlight {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            border-color: #10b981;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 30px;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            background: #1a1a1a;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #2a2a2a;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #9ca3af;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #3a3a3a;
+            white-space: nowrap;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a2a;
+            color: #e5e5e5;
+            font-size: 14px;
+        }
+        
+        tr:hover {
+            background: #252525;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        
+        .status-ativa {
+            background: #065f46;
+            color: #6ee7b7;
+            border: 1px solid #10b981;
+        }
+        
+        .status-aguardando {
+            background: #713f12;
+            color: #fbbf24;
+            border: 1px solid #f59e0b;
+        }
+        
+        .status-impedido {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border: 1px solid #ef4444;
+        }
+        
+        .status-conclusao {
+            background: #312e81;
+            color: #a5b4fc;
+            border: 1px solid #6366f1;
+        }
+        
+        .currency {
+            font-weight: 600;
+            color: #60a5fa;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e5e5e5;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3a3a3a;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #2a2a2a;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        
+        .link-button {
+            color: #60a5fa;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .link-button:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+        
+        .executor-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .executor-name {
+            font-weight: 600;
+            color: #e5e5e5;
+        }
+        
+        .executor-cnpj {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        
+        .nota-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+        
+        .nota-box strong {
+            color: #60a5fa;
+        }
+        
+        .nota-box ul {
+            margin-top: 10px;
+            margin-left: 20px;
+        }
+        
+        .nota-box li {
+            margin-bottom: 5px;
+        }
+        
+        .cache-info {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">ES</div>
+                <div class="header-title">
+                    <h1>Sistema de Consulta de Transferências Especiais</h1>
+                    <p>Tesouro Estadual | SEFAZ-ES</p>
+                </div>
+            </div>
+            <div style="text-align: right; color: #6b7280; font-size: 12px;">
+                <div>Fonte: API Transferegov.br</div>
+                <div style="margin-top: 4px;">Atualização: D+1</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+        
+        function TransfereggovConsulta() {
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [warning, setWarning] = useState(null);
+            const [success, setSuccess] = useState(null);
+            const [data, setData] = useState(null);
+            const [cnpj] = useState('27080530000143');
+            const [ano, setAno] = useState('2025');
+            const [useCache, setUseCache] = useState(false);
+            const [proxyOption, setProxyOption] = useState('corsproxy');
+            
+            // Lista de proxies CORS para fallback
+            const corsProxies = {
+                'corsproxy': 'https://corsproxy.io/?',
+                'allorigins': 'https://api.allorigins.win/raw?url=',
+                'corsanywhere': 'https://cors-anywhere.herokuapp.com/',
+                'direct': '' // Tentativa direta sem proxy
+            };
+            
+            const formatCurrency = (value) => {
+                if (!value) return 'R$ 0,00';
+                return new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                }).format(value);
+            };
+            
+            const formatCNPJ = (cnpj) => {
+                if (!cnpj) return '';
+                const cleaned = cnpj.replace(/\D/g, '');
+                return cleaned.replace(
+                    /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+                    '$1.$2.$3/$4-$5'
+                );
+            };
+            
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '-';
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('pt-BR');
+            };
+            
+            const formatStatus = (status) => {
+                if (!status) return status;
+                // Remove underscores e capitaliza
+                return status
+                    .replace(/_/g, ' ')
+                    .toLowerCase()
+                    .replace(/\b\w/g, l => l.toUpperCase());
+            };
+            
+            const getStatusClass = (status) => {
+                if (!status) return 'status-aguardando';
+                const statusLower = status.toLowerCase();
+                if (statusLower.includes('ativa') || statusLower.includes('ciente')) return 'status-ativa';
+                if (statusLower.includes('impedid')) return 'status-impedido';
+                if (statusLower.includes('conclusao')) return 'status-conclusao';
+                return 'status-aguardando';
+            };
+            
+            // Função corrigida para construir URL do plano de ação
+            const buildPlanoAcaoUrl = (codigoPlanoAcao) => {
+                // Formato: 09032025-077878
+                // Extrair apenas o ID numérico após o hífen
+                if (!codigoPlanoAcao) return null;
+                
+                const parts = codigoPlanoAcao.split('-');
+                if (parts.length !== 2) return null;
+                
+                const idPlano = parts[1];
+                return `https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/detalhe/${idPlano}/dados-basicos`;
+            };
+            
+            // Cache management
+            const getCacheKey = () => `transferegov_${cnpj}_${ano}`;
+            
+            const saveToCache = (data) => {
+                try {
+                    const cacheData = {
+                        data: data,
+                        timestamp: new Date().getTime(),
+                        cnpj: cnpj,
+                        ano: ano
+                    };
+                    sessionStorage.setItem(getCacheKey(), JSON.stringify(cacheData));
+                } catch (e) {
+                    console.error('Erro ao salvar no cache:', e);
+                }
+            };
+            
+            const loadFromCache = () => {
+                try {
+                    const cached = sessionStorage.getItem(getCacheKey());
+                    if (cached) {
+                        const cacheData = JSON.parse(cached);
+                        const now = new Date().getTime();
+                        const cacheAge = (now - cacheData.timestamp) / 1000 / 60; // em minutos
+                        
+                        if (cacheAge < 30) { // Cache válido por 30 minutos
+                            return cacheData;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Erro ao carregar do cache:', e);
+                }
+                return null;
+            };
+            
+            const clearCache = () => {
+                try {
+                    sessionStorage.removeItem(getCacheKey());
+                    setSuccess('Cache limpo com sucesso!');
+                    setTimeout(() => setSuccess(null), 3000);
+                } catch (e) {
+                    console.error('Erro ao limpar cache:', e);
+                }
+            };
+            
+            const fetchWithProxy = async (url, proxyUrl) => {
+                const fullUrl = proxyUrl ? proxyUrl + encodeURIComponent(url) : url;
+                
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            };
+            
+            const fetchData = async (forceRefresh = false) => {
+                setLoading(true);
+                setError(null);
+                setWarning(null);
+                setSuccess(null);
+                
+                // Tentar carregar do cache primeiro
+                if (!forceRefresh && useCache) {
+                    const cached = loadFromCache();
+                    if (cached) {
+                        setData(cached.data);
+                        setSuccess(`Dados carregados do cache (${new Date(cached.timestamp).toLocaleTimeString('pt-BR')})`);
+                        setLoading(false);
+                        return;
+                    }
+                }
+                
+                try {
+                    const proxyUrl = corsProxies[proxyOption];
+                    const baseUrl = 'https://api.transferegov.gestao.gov.br/transferenciasespeciais';
+                    
+                    // Buscar os planos de ação
+                    const planosUrl = `${baseUrl}/plano_acao_especial?cnpj_beneficiario_plano_acao=eq.${cnpj}&ano_plano_acao=eq.${ano}`;
+                    console.log('Consultando planos de ação com proxy:', proxyOption);
+                    
+                    let planos;
+                    try {
+                        planos = await fetchWithProxy(planosUrl, proxyUrl);
+                    } catch (err) {
+                        console.error(`Erro com proxy ${proxyOption}:`, err);
+                        
+                        // Tentar com proxy alternativo
+                        if (proxyOption === 'corsproxy') {
+                            console.log('Tentando proxy alternativo...');
+                            planos = await fetchWithProxy(planosUrl, corsProxies['allorigins']);
+                            setWarning('Usando proxy alternativo. A conexão pode estar mais lenta.');
+                        } else {
+                            throw err;
+                        }
+                    }
+                    
+                    console.log(`Encontrados ${planos.length} planos de ação`);
+                    
+                    // Limitar requisições paralelas para evitar sobrecarga
+                    const batchSize = 3;
+                    const planosCompletos = [];
+                    
+                    for (let i = 0; i < planos.length; i += batchSize) {
+                        const batch = planos.slice(i, i + batchSize);
+                        const batchResults = await Promise.all(
+                            batch.map(async (plano) => {
+                                try {
+                                    // Buscar apenas empenhos e executores (menos requisições)
+                                    const [empenhos, executores] = await Promise.all([
+                                        fetchWithProxy(
+                                            `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                            proxyUrl
+                                        ).catch(() => []),
+                                        fetchWithProxy(
+                                            `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                            proxyUrl
+                                        ).catch(() => [])
+                                    ]);
+                                    
+                                    return {
+                                        ...plano,
+                                        empenhos,
+                                        executores,
+                                        valorLiberado: 0 // Simplificado por enquanto
+                                    };
+                                } catch (err) {
+                                    console.error('Erro ao buscar dados do plano:', err);
+                                    return {
+                                        ...plano,
+                                        empenhos: [],
+                                        executores: [],
+                                        valorLiberado: 0
+                                    };
+                                }
+                            })
+                        );
+                        planosCompletos.push(...batchResults);
+                    }
+                    
+                    const resultData = { planos: planosCompletos };
+                    
+                    // Salvar no cache
+                    saveToCache(resultData);
+                    setData(resultData);
+                    setSuccess('Dados carregados com sucesso!');
+                    
+                } catch (err) {
+                    console.error('Erro detalhado:', err);
+                    
+                    // Tentar carregar do cache em caso de erro
+                    const cached = loadFromCache();
+                    if (cached) {
+                        setData(cached.data);
+                        setWarning(`Erro na conexão. Usando dados do cache de ${new Date(cached.timestamp).toLocaleString('pt-BR')}`);
+                    } else {
+                        setError(`Erro: ${err.message}. Tente novamente ou mude o proxy nas opções.`);
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const exportToExcel = () => {
+                if (!data || !data.planos) return;
+                
+                // Preparar dados da primeira tabela
+                const mainTableData = [];
+                data.planos.forEach(plano => {
+                    const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
+                    const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
+                    
+                    if (valorCusteio > 0) {
+                        mainTableData.push({
+                            'Código Plano': plano.codigo_plano_acao || '-',
+                            'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                            'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                            'Categoria': 'CUSTEIO',
+                            'Banco': plano.nome_banco_plano_acao || '-',
+                            'Agência': `${plano.numero_agencia_plano_acao || ''}${plano.dv_agencia_plano_acao ? `-${plano.dv_agencia_plano_acao}` : ''}`,
+                            'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
+                            'Situação': plano.situacao_plano_acao || 'Aguardando',
+                            'Valor Total': valorCusteio,
+                            'Valor Empenhado': plano.empenhos ? plano.empenhos
+                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                        });
+                    }
+                    
+                    if (valorInvestimento > 0) {
+                        mainTableData.push({
+                            'Código Plano': plano.codigo_plano_acao || '-',
+                            'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                            'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                            'Categoria': 'INVESTIMENTO',
+                            'Banco': plano.nome_banco_plano_acao || '-',
+                            'Agência': `${plano.numero_agencia_plano_acao || ''}${plano.dv_agencia_plano_acao ? `-${plano.dv_agencia_plano_acao}` : ''}`,
+                            'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
+                            'Situação': plano.situacao_plano_acao || 'Aguardando',
+                            'Valor Total': valorInvestimento,
+                            'Valor Empenhado': plano.empenhos ? plano.empenhos
+                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                        });
+                    }
+                });
+                
+                // Criar workbook
+                const wb = XLSX.utils.book_new();
+                const ws1 = XLSX.utils.json_to_sheet(mainTableData);
+                XLSX.utils.book_append_sheet(wb, ws1, "Emendas Parlamentares");
+                
+                // Gerar arquivo
+                const fileName = `transferencias_especiais_${cnpj}_${ano}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+            };
+            
+            const calculateTotals = () => {
+                if (!data || !data.planos) return {
+                    totalCusteio: 0,
+                    totalInvestimento: 0,
+                    totalGeral: 0,
+                    totalEmpenhado: 0,
+                    totalLiberado: 0
+                };
+                
+                let totalCusteio = 0;
+                let totalInvestimento = 0;
+                let totalEmpenhado = 0;
+                let totalLiberado = 0;
+                
+                data.planos.forEach(plano => {
+                    totalCusteio += parseFloat(plano.valor_custeio_plano_acao || 0);
+                    totalInvestimento += parseFloat(plano.valor_investimento_plano_acao || 0);
+                    totalLiberado += parseFloat(plano.valorLiberado || 0);
+                    
+                    if (plano.empenhos) {
+                        plano.empenhos.forEach(empenho => {
+                            totalEmpenhado += parseFloat(empenho.valor_empenho || 0);
+                        });
+                    }
+                });
+                
+                return {
+                    totalCusteio,
+                    totalInvestimento,
+                    totalGeral: totalCusteio + totalInvestimento,
+                    totalEmpenhado,
+                    totalLiberado
+                };
+            };
+            
+            useEffect(() => {
+                fetchData();
+            }, []);
+            
+            const totals = calculateTotals();
+            
+            return (
+                <div className="container">
+                    <div className="card">
+                        <div className="info-banner">
+                            <div className="info-banner-icon">ℹ️</div>
+                            <div className="info-banner-content">
+                                <div className="info-banner-title">Informações Importantes</div>
+                                <div className="info-banner-text">
+                                    Os dados são obtidos da API do Transferegov.br com atualização D+1. 
+                                    Se houver erro de conexão, tente trocar o proxy ou usar dados em cache.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="controls">
+                            <div className="control-group">
+                                <label>CNPJ Beneficiário</label>
+                                <input 
+                                    type="text" 
+                                    value={formatCNPJ(cnpj)}
+                                    disabled
+                                    style={{ width: '200px' }}
+                                />
+                            </div>
+                            
+                            <div className="control-group">
+                                <label>Ano</label>
+                                <input 
+                                    type="text" 
+                                    value={ano}
+                                    onChange={(e) => setAno(e.target.value)}
+                                    style={{ width: '100px' }}
+                                />
+                            </div>
+                            
+                            <div className="control-group">
+                                <label>Proxy CORS</label>
+                                <select 
+                                    value={proxyOption}
+                                    onChange={(e) => setProxyOption(e.target.value)}
+                                    style={{ width: '150px' }}
+                                >
+                                    <option value="corsproxy">CorsProxy.io</option>
+                                    <option value="allorigins">AllOrigins</option>
+                                    <option value="direct">Direto (sem proxy)</option>
+                                </select>
+                            </div>
+                            
+                            <button 
+                                className="btn" 
+                                onClick={() => fetchData(true)}
+                                disabled={loading}
+                            >
+                                {loading ? 'Consultando...' : '🔍 Consultar'}
+                            </button>
+                            
+                            <button 
+                                className="btn btn-warning" 
+                                onClick={() => {
+                                    setUseCache(!useCache);
+                                    if (!useCache) {
+                                        const cached = loadFromCache();
+                                        if (cached) {
+                                            setData(cached.data);
+                                            setSuccess(`Cache habilitado. Dados de ${new Date(cached.timestamp).toLocaleTimeString('pt-BR')}`);
+                                        }
+                                    }
+                                }}
+                            >
+                                {useCache ? '✅ Cache ON' : '❌ Cache OFF'}
+                            </button>
+                            
+                            {data && (
+                                <>
+                                    <button 
+                                        className="btn btn-secondary" 
+                                        onClick={exportToExcel}
+                                    >
+                                        📊 Excel
+                                    </button>
+                                    <button 
+                                        className="btn btn-warning" 
+                                        onClick={clearCache}
+                                    >
+                                        🗑️ Limpar Cache
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                        
+                        {error && (
+                            <div className="error">
+                                ⚠️ {error}
+                            </div>
+                        )}
+                        
+                        {warning && (
+                            <div className="warning">
+                                ⚠️ {warning}
+                            </div>
+                        )}
+                        
+                        {success && (
+                            <div className="success">
+                                ✅ {success}
+                            </div>
+                        )}
+                        
+                        {loading && (
+                            <div className="loading">
+                                <div className="loading-spinner"></div>
+                                Carregando dados do Transferegov...
+                            </div>
+                        )}
+                        
+                        {data && !loading && (
+                            <>
+                                <div className="stats">
+                                    <div className="stat-card">
+                                        <h3>Valor Total</h3>
+                                        <div className="value">{formatCurrency(totals.totalGeral)}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <h3>Total Custeio</h3>
+                                        <div className="value">{formatCurrency(totals.totalCusteio)}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <h3>Total Investimento</h3>
+                                        <div className="value">{formatCurrency(totals.totalInvestimento)}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <h3>Total Empenhado</h3>
+                                        <div className="value">{formatCurrency(totals.totalEmpenhado)}</div>
+                                    </div>
+                                    <div className="stat-card highlight">
+                                        <h3>Total Liberado</h3>
+                                        <div className="value">{formatCurrency(totals.totalLiberado)}</div>
+                                    </div>
+                                </div>
+                                
+                                <h2 className="section-title">Detalhamento por Emenda Parlamentar</h2>
+                                
+                                <div className="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Código Plano</th>
+                                                <th>Nº Emenda</th>
+                                                <th>Parlamentar</th>
+                                                <th>Categoria</th>
+                                                <th>Banco</th>
+                                                <th>Agência</th>
+                                                <th>Conta</th>
+                                                <th>Situação</th>
+                                                <th>Valor Total</th>
+                                                <th>Valor Empenhado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.planos && data.planos.length > 0 ? (
+                                                data.planos.map((plano, index) => {
+                                                    const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
+                                                    const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
+                                                    const urlPlano = buildPlanoAcaoUrl(plano.codigo_plano_acao);
+                                                    
+                                                    const rows = [];
+                                                    
+                                                    // Linha para CUSTEIO
+                                                    if (valorCusteio > 0) {
+                                                        rows.push(
+                                                            <tr key={`${index}-custeio`}>
+                                                                <td>
+                                                                    {urlPlano ? (
+                                                                        <a 
+                                                                            href={urlPlano} 
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer"
+                                                                            className="link-button"
+                                                                            title="Ver detalhes no Transferegov"
+                                                                        >
+                                                                            {plano.codigo_plano_acao || '-'}
+                                                                            <span style={{ fontSize: '12px' }}>🔗</span>
+                                                                        </a>
+                                                                    ) : (
+                                                                        plano.codigo_plano_acao || '-'
+                                                                    )}
+                                                                </td>
+                                                                <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                <td>CUSTEIO</td>
+                                                                <td>{plano.nome_banco_plano_acao || '-'}</td>
+                                                                <td>
+                                                                    {plano.numero_agencia_plano_acao}
+                                                                    {plano.dv_agencia_plano_acao ? `-${plano.dv_agencia_plano_acao}` : ''}
+                                                                </td>
+                                                                <td>
+                                                                    {plano.numero_conta_plano_acao}
+                                                                    {plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}
+                                                                </td>
+                                                                <td>
+                                                                    <span className={`status-badge ${getStatusClass(plano.situacao_plano_acao)}`}>
+                                                                        {formatStatus(plano.situacao_plano_acao) || 'Aguardando'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorCusteio)}</td>
+                                                                <td className="currency">
+                                                                    {formatCurrency(
+                                                                        plano.empenhos 
+                                                                            ? plano.empenhos
+                                                                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                                            : 0
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    }
+                                                    
+                                                    // Linha para INVESTIMENTO
+                                                    if (valorInvestimento > 0) {
+                                                        rows.push(
+                                                            <tr key={`${index}-investimento`}>
+                                                                <td>
+                                                                    {urlPlano ? (
+                                                                        <a 
+                                                                            href={urlPlano} 
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer"
+                                                                            className="link-button"
+                                                                            title="Ver detalhes no Transferegov"
+                                                                        >
+                                                                            {plano.codigo_plano_acao || '-'}
+                                                                            <span style={{ fontSize: '12px' }}>🔗</span>
+                                                                        </a>
+                                                                    ) : (
+                                                                        plano.codigo_plano_acao || '-'
+                                                                    )}
+                                                                </td>
+                                                                <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                <td>INVESTIMENTO</td>
+                                                                <td>{plano.nome_banco_plano_acao || '-'}</td>
+                                                                <td>
+                                                                    {plano.numero_agencia_plano_acao}
+                                                                    {plano.dv_agencia_plano_acao ? `-${plano.dv_agencia_plano_acao}` : ''}
+                                                                </td>
+                                                                <td>
+                                                                    {plano.numero_conta_plano_acao}
+                                                                    {plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}
+                                                                </td>
+                                                                <td>
+                                                                    <span className={`status-badge ${getStatusClass(plano.situacao_plano_acao)}`}>
+                                                                        {formatStatus(plano.situacao_plano_acao) || 'Aguardando'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorInvestimento)}</td>
+                                                                <td className="currency">
+                                                                    {formatCurrency(
+                                                                        plano.empenhos 
+                                                                            ? plano.empenhos
+                                                                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                                            : 0
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    }
+                                                    
+                                                    return rows;
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="10" className="no-data">
+                                                        Nenhuma transferência encontrada para este CNPJ no ano especificado
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ fontWeight: 'bold', backgroundColor: '#252525' }}>
+                                                <td colSpan="8">VALOR TOTAL</td>
+                                                <td className="currency">{formatCurrency(totals.totalGeral)}</td>
+                                                <td className="currency">{formatCurrency(totals.totalEmpenhado)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                
+                                <div className="footer">
+                                    <p>Sistema desenvolvido pelo Tesouro Estadual | SEFAZ-ES</p>
+                                    <p>Dados da API Transferegov.br - Atualização: D+1</p>
+                                    <p>{data && loadFromCache() ? '📦 Dados em cache disponíveis' : '🔄 Dados em tempo real'}</p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<TransfereggovConsulta />, document.getElementById('root'));
+    </script>
+</body>
+</html>
