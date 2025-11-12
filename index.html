@@ -455,6 +455,38 @@
             color: #6b7280;
             margin-top: 10px;
         }
+
+        .progress-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            height: 30px;
+            position: relative;
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e5e5e5;
+            font-weight: 600;
+            font-size: 12px;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
@@ -487,8 +519,9 @@
             const [data, setData] = useState(null);
             const [cnpj] = useState('27080530000143');
             const [ano, setAno] = useState('2025');
-            const [useCache, setUseCache] = useState(false);
+            const [useCache, setUseCache] = useState(true); // Cache ativado por padrão
             const [proxyOption, setProxyOption] = useState('corsproxy');
+            const [progress, setProgress] = useState({ current: 0, total: 0 });
             
             // Lista de proxies CORS para fallback
             const corsProxies = {
@@ -657,46 +690,54 @@
                     }
                     
                     console.log(`Encontrados ${planos.length} planos de ação`);
-                    
-                    // Limitar requisições paralelas para evitar sobrecarga
-                    const batchSize = 3;
+
+                    // Limitar requisições paralelas para evitar sobrecarga - OTIMIZADO
+                    const batchSize = 10; // Aumentado de 3 para 10 para melhor performance
                     const planosCompletos = [];
-                    
+                    setProgress({ current: 0, total: planos.length });
+
                     for (let i = 0; i < planos.length; i += batchSize) {
                         const batch = planos.slice(i, i + batchSize);
                         const batchResults = await Promise.all(
                             batch.map(async (plano) => {
                                 try {
-                                    // Buscar apenas empenhos e executores (menos requisições)
-                                    const [empenhos, executores] = await Promise.all([
+                                    // Buscar empenhos e liberações (removido executores - não usado)
+                                    const [empenhos, liberacoes] = await Promise.all([
                                         fetchWithProxy(
                                             `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
                                             proxyUrl
                                         ).catch(() => []),
                                         fetchWithProxy(
-                                            `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                            `${baseUrl}/libera_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
                                             proxyUrl
                                         ).catch(() => [])
                                     ]);
-                                    
+
+                                    // Calcular valor total liberado
+                                    const valorLiberado = liberacoes.reduce(
+                                        (sum, lib) => sum + parseFloat(lib.valor_liberado || 0),
+                                        0
+                                    );
+
                                     return {
                                         ...plano,
                                         empenhos,
-                                        executores,
-                                        valorLiberado: 0 // Simplificado por enquanto
+                                        liberacoes,
+                                        valorLiberado
                                     };
                                 } catch (err) {
                                     console.error('Erro ao buscar dados do plano:', err);
                                     return {
                                         ...plano,
                                         empenhos: [],
-                                        executores: [],
+                                        liberacoes: [],
                                         valorLiberado: 0
                                     };
                                 }
                             })
                         );
                         planosCompletos.push(...batchResults);
+                        setProgress({ current: Math.min(i + batchSize, planos.length), total: planos.length });
                     }
                     
                     const resultData = { planos: planosCompletos };
@@ -744,7 +785,10 @@
                             'Valor Total': valorCusteio,
                             'Valor Empenhado': plano.empenhos ? plano.empenhos
                                 .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0,
+                            'Valor Liberado': plano.liberacoes ? plano.liberacoes
+                                .filter(lib => lib.categoria_despesa_liberacao === 'CUSTEIO')
+                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0) : 0
                         });
                     }
                     
@@ -761,7 +805,10 @@
                             'Valor Total': valorInvestimento,
                             'Valor Empenhado': plano.empenhos ? plano.empenhos
                                 .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0,
+                            'Valor Liberado': plano.liberacoes ? plano.liberacoes
+                                .filter(lib => lib.categoria_despesa_liberacao === 'INVESTIMENTO')
+                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0) : 0
                         });
                     }
                 });
@@ -925,6 +972,18 @@
                             </div>
                         )}
                         
+                        {loading && progress.total > 0 && (
+                            <div className="progress-container">
+                                <div
+                                    className="progress-bar"
+                                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                ></div>
+                                <div className="progress-text">
+                                    Processando {progress.current} de {progress.total} planos...
+                                </div>
+                            </div>
+                        )}
+
                         {loading && (
                             <div className="loading">
                                 <div className="loading-spinner"></div>
@@ -973,6 +1032,7 @@
                                                 <th>Situação</th>
                                                 <th>Valor Total</th>
                                                 <th>Valor Empenhado</th>
+                                                <th>Valor Liberado</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1024,10 +1084,19 @@
                                                                 <td className="currency">{formatCurrency(valorCusteio)}</td>
                                                                 <td className="currency">
                                                                     {formatCurrency(
-                                                                        plano.empenhos 
+                                                                        plano.empenhos
                                                                             ? plano.empenhos
                                                                                 .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
                                                                                 .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                                            : 0
+                                                                    )}
+                                                                </td>
+                                                                <td className="currency">
+                                                                    {formatCurrency(
+                                                                        plano.liberacoes && plano.liberacoes.length > 0
+                                                                            ? plano.liberacoes
+                                                                                .filter(lib => lib.categoria_despesa_liberacao === 'CUSTEIO')
+                                                                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0)
                                                                             : 0
                                                                     )}
                                                                 </td>
@@ -1075,10 +1144,19 @@
                                                                 <td className="currency">{formatCurrency(valorInvestimento)}</td>
                                                                 <td className="currency">
                                                                     {formatCurrency(
-                                                                        plano.empenhos 
+                                                                        plano.empenhos
                                                                             ? plano.empenhos
                                                                                 .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
                                                                                 .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                                            : 0
+                                                                    )}
+                                                                </td>
+                                                                <td className="currency">
+                                                                    {formatCurrency(
+                                                                        plano.liberacoes && plano.liberacoes.length > 0
+                                                                            ? plano.liberacoes
+                                                                                .filter(lib => lib.categoria_despesa_liberacao === 'INVESTIMENTO')
+                                                                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0)
                                                                             : 0
                                                                     )}
                                                                 </td>
@@ -1090,7 +1168,7 @@
                                                 })
                                             ) : (
                                                 <tr>
-                                                    <td colSpan="10" className="no-data">
+                                                    <td colSpan="11" className="no-data">
                                                         Nenhuma transferência encontrada para este CNPJ no ano especificado
                                                     </td>
                                                 </tr>
@@ -1101,6 +1179,7 @@
                                                 <td colSpan="8">VALOR TOTAL</td>
                                                 <td className="currency">{formatCurrency(totals.totalGeral)}</td>
                                                 <td className="currency">{formatCurrency(totals.totalEmpenhado)}</td>
+                                                <td className="currency">{formatCurrency(totals.totalLiberado)}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
