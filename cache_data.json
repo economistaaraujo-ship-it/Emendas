@@ -1,0 +1,8 @@
+{
+  "planos": [],
+  "timestamp": 0,
+  "cnpj": "27080530000143",
+  "ano": "2025",
+  "version": "1.0",
+  "nota": "Este arquivo serve como cache de fallback quando a API do Transferegov estiver indisponível. Os dados são atualizados automaticamente quando um usuário consegue acessar a API com sucesso."
+}

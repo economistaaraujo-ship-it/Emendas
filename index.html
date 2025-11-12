@@ -632,22 +632,6 @@
             }
         }
 
-        .hidden-file-input {
-            display: none;
-        }
-
-        .backup-controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-
-        @media (max-width: 768px) {
-            .backup-controls {
-                flex-direction: column;
-            }
-        }
     </style>
 </head>
 <body>
@@ -815,63 +799,22 @@
                 }
             };
 
-            // Função para exportar dados como backup JSON
-            const exportBackupJSON = () => {
-                if (!data || !data.planos) return;
-
-                const backupData = {
-                    data: data,
-                    timestamp: new Date().getTime(),
-                    cnpj: cnpj,
-                    ano: ano,
-                    backup_version: '1.0'
-                };
-
-                const jsonString = JSON.stringify(backupData, null, 2);
-                const blob = new Blob([jsonString], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `backup_transferencias_${cnpj}_${ano}_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-
-                setSuccess('Backup JSON criado com sucesso!');
-                setTimeout(() => setSuccess(null), 3000);
-            };
-
-            // Função para importar dados de backup JSON
-            const importBackupJSON = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const backupData = JSON.parse(e.target.result);
-
-                        // Validar estrutura do backup
-                        if (backupData.data && backupData.data.planos) {
-                            setData(backupData.data);
-
-                            // Salvar no cache também
-                            saveToCache(backupData.data);
-
-                            setSuccess(`Backup restaurado com sucesso! ${backupData.data.planos.length} planos carregados.`);
-                            setTimeout(() => setSuccess(null), 5000);
-                        } else {
-                            setError('Arquivo de backup inválido');
-                            setTimeout(() => setError(null), 3000);
+            // Função para carregar dados do cache GitHub (fallback comunitário)
+            const loadFromGitHubCache = async () => {
+                try {
+                    console.log('Tentando carregar cache do GitHub...');
+                    const response = await fetch('./cache_data.json?' + new Date().getTime()); // Cache bust
+                    if (response.ok) {
+                        const githubCache = await response.json();
+                        if (githubCache && githubCache.planos && githubCache.planos.length > 0) {
+                            console.log('Cache do GitHub carregado com sucesso');
+                            return githubCache;
                         }
-                    } catch (err) {
-                        console.error('Erro ao importar backup:', err);
-                        setError('Erro ao ler arquivo de backup');
-                        setTimeout(() => setError(null), 3000);
                     }
-                };
-                reader.readAsText(file);
+                } catch (err) {
+                    console.error('Erro ao carregar cache do GitHub:', err);
+                }
+                return null;
             };
             
             // Sistema de fetch com fallback automático entre proxies
@@ -1007,17 +950,34 @@
                 } catch (err) {
                     console.error('Erro detalhado:', err);
 
-                    // Sistema de fallback: tentar carregar do cache em caso de erro
+                    // Sistema de fallback em múltiplas camadas
+                    // 1. Tentar cache local (sessionStorage/localStorage)
                     const cached = loadFromCache();
                     if (cached) {
                         setData(cached.data);
                         const cacheAge = (new Date().getTime() - cached.timestamp) / 1000 / 60; // minutos
                         const cacheType = cacheAge < 30 ? 'sessão' : 'persistente';
                         const cacheDate = new Date(cached.timestamp).toLocaleString('pt-BR');
-                        setWarning(`⚠️ API temporariamente indisponível. Exibindo dados do cache ${cacheType} (${cacheDate}). Os dados podem não estar atualizados.`);
-                    } else {
-                        setError(`❌ Erro na conexão com a API e nenhum dado em cache disponível. Por favor:\n• Verifique sua conexão com a internet\n• Tente novamente em alguns instantes\n• Se tiver um backup JSON, use o botão "Restaurar Backup"`);
+                        setWarning(`⚠️ API temporariamente indisponível. Exibindo dados do cache ${cacheType} (${cacheDate}).`);
+                        setLoading(false);
+                        return;
                     }
+
+                    // 2. Tentar cache do GitHub
+                    const githubCache = await loadFromGitHubCache();
+                    if (githubCache && githubCache.planos && githubCache.planos.length > 0) {
+                        setData({ planos: githubCache.planos });
+                        const cacheDate = githubCache.timestamp ? new Date(githubCache.timestamp).toLocaleString('pt-BR') : 'data desconhecida';
+                        setWarning(`⚠️ API temporariamente indisponível. Exibindo dados do último backup comunitário (${cacheDate}).`);
+
+                        // Salvar no cache local também
+                        saveToCache({ planos: githubCache.planos });
+                        setLoading(false);
+                        return;
+                    }
+
+                    // 3. Nenhum fallback disponível
+                    setError(`❌ API temporariamente indisponível e nenhum dado em cache disponível.\n\nPossíveis causas:\n• API do Transferegov pode estar fora do ar\n• Não há dados disponíveis para ${ano}\n• Problema temporário de conexão\n\nTente novamente mais tarde ou altere o ano da consulta.`);
                 } finally {
                     setLoading(false);
                 }
@@ -1182,10 +1142,11 @@
                         <div className="info-banner">
                             <div className="info-banner-icon">ℹ️</div>
                             <div className="info-banner-content">
-                                <div className="info-banner-title">Informações Importantes</div>
+                                <div className="info-banner-title">Sobre os Dados</div>
                                 <div className="info-banner-text">
-                                    Os dados são obtidos da API do Transferegov.br com atualização D+1.
-                                    O sistema utiliza cache para melhorar o desempenho e garantir acesso aos dados mesmo em caso de falhas temporárias de conexão.
+                                    Dados obtidos da API Transferegov.br (atualização D+1).
+                                    O sistema mantém backups automáticos em múltiplas camadas para garantir acesso contínuo,
+                                    mesmo quando a API estiver temporariamente indisponível.
                                 </div>
                             </div>
                         </div>
@@ -1249,42 +1210,9 @@
                                     >
                                         🗑️ Limpar Cache
                                     </button>
-
-                                    <button
-                                        className="btn btn-secondary"
-                                        onClick={exportBackupJSON}
-                                        title="Exportar dados como backup JSON para uso offline"
-                                    >
-                                        💾 Backup JSON
-                                    </button>
-
-                                    <label className="btn btn-secondary" style={{ margin: 0, cursor: 'pointer' }}>
-                                        📁 Restaurar Backup
-                                        <input
-                                            type="file"
-                                            accept=".json"
-                                            onChange={importBackupJSON}
-                                            className="hidden-file-input"
-                                        />
-                                    </label>
                                 </>
                             )}
                         </div>
-
-                        {data && (
-                            <div className="nota-box" style={{ marginTop: '15px', marginBottom: '0' }}>
-                                <strong>💡 Sobre o Sistema de Cache:</strong>
-                                <div style={{ marginTop: '8px', fontSize: '13px' }}>
-                                    O sistema mantém múltiplos backups automáticos dos dados:
-                                    <ul style={{ marginTop: '5px', marginBottom: '0' }}>
-                                        <li><strong>Cache de Sessão:</strong> Válido por 30 minutos (mais rápido)</li>
-                                        <li><strong>Cache Persistente:</strong> Válido por 7 dias (funciona mesmo após fechar o navegador)</li>
-                                        <li><strong>Backup JSON:</strong> Arquivo permanente que você pode salvar e restaurar a qualquer momento</li>
-                                    </ul>
-                                    Se a API estiver temporariamente indisponível, o sistema usará automaticamente o backup mais recente disponível.
-                                </div>
-                            </div>
-                        )}
                         
                         {error && (
                             <div className="error">
