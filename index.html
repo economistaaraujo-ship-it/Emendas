@@ -487,6 +487,149 @@
             font-size: 12px;
             z-index: 1;
         }
+
+        /* Responsividade Mobile */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .logo-section {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .header-title h1 {
+                font-size: 18px;
+            }
+
+            .header-title p {
+                font-size: 12px;
+            }
+
+            .container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            .control-group input,
+            .control-group select {
+                width: 100% !important;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-card .value {
+                font-size: 22px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+                white-space: nowrap;
+            }
+
+            th {
+                font-size: 10px;
+            }
+
+            .status-badge {
+                font-size: 9px;
+                padding: 3px 8px;
+            }
+
+            .info-banner {
+                padding: 12px 15px;
+            }
+
+            .info-banner-title {
+                font-size: 14px;
+            }
+
+            .info-banner-text {
+                font-size: 12px;
+            }
+
+            .nota-box {
+                padding: 12px;
+                font-size: 12px;
+            }
+
+            .footer {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title h1 {
+                font-size: 16px;
+            }
+
+            .logo {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .stats {
+                margin-bottom: 20px;
+            }
+
+            .stat-card h3 {
+                font-size: 10px;
+            }
+
+            .stat-card .value {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -520,16 +663,14 @@
             const [cnpj] = useState('27080530000143');
             const [ano, setAno] = useState('2025');
             const [useCache, setUseCache] = useState(true); // Cache ativado por padrão
-            const [proxyOption, setProxyOption] = useState('corsproxy');
             const [progress, setProgress] = useState({ current: 0, total: 0 });
-            
-            // Lista de proxies CORS para fallback
-            const corsProxies = {
-                'corsproxy': 'https://corsproxy.io/?',
-                'allorigins': 'https://api.allorigins.win/raw?url=',
-                'corsanywhere': 'https://cors-anywhere.herokuapp.com/',
-                'direct': '' // Tentativa direta sem proxy
-            };
+
+            // Lista de proxies CORS para fallback automático (ordem de prioridade)
+            const corsProxies = [
+                { name: 'corsproxy', url: 'https://corsproxy.io/?' },
+                { name: 'allorigins', url: 'https://api.allorigins.win/raw?url=' },
+                { name: 'direct', url: '' } // Tentativa direta sem proxy
+            ];
             
             const formatCurrency = (value) => {
                 if (!value) return 'R$ 0,00';
@@ -630,22 +771,38 @@
                 }
             };
             
-            const fetchWithProxy = async (url, proxyUrl) => {
-                const fullUrl = proxyUrl ? proxyUrl + encodeURIComponent(url) : url;
-                
-                const response = await fetch(fullUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
+            // Sistema de fetch com fallback automático entre proxies
+            const fetchWithAutoProxy = async (url) => {
+                let lastError = null;
+
+                // Tenta cada proxy em sequência
+                for (const proxy of corsProxies) {
+                    try {
+                        const fullUrl = proxy.url ? proxy.url + encodeURIComponent(url) : url;
+
+                        const response = await fetch(fullUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        // Se chegou aqui, sucesso! Retorna os dados
+                        return await response.json();
+                    } catch (err) {
+                        console.log(`Falha com proxy ${proxy.name}, tentando próximo...`);
+                        lastError = err;
+                        // Continua para o próximo proxy
                     }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
-                return await response.json();
+
+                // Se chegou aqui, todos os proxies falharam
+                throw lastError || new Error('Todos os proxies falharam');
             };
             
             const fetchData = async (forceRefresh = false) => {
@@ -666,29 +823,13 @@
                 }
                 
                 try {
-                    const proxyUrl = corsProxies[proxyOption];
                     const baseUrl = 'https://api.transferegov.gestao.gov.br/transferenciasespeciais';
-                    
-                    // Buscar os planos de ação
+
+                    // Buscar os planos de ação (com fallback automático de proxies)
                     const planosUrl = `${baseUrl}/plano_acao_especial?cnpj_beneficiario_plano_acao=eq.${cnpj}&ano_plano_acao=eq.${ano}`;
-                    console.log('Consultando planos de ação com proxy:', proxyOption);
-                    
-                    let planos;
-                    try {
-                        planos = await fetchWithProxy(planosUrl, proxyUrl);
-                    } catch (err) {
-                        console.error(`Erro com proxy ${proxyOption}:`, err);
-                        
-                        // Tentar com proxy alternativo
-                        if (proxyOption === 'corsproxy') {
-                            console.log('Tentando proxy alternativo...');
-                            planos = await fetchWithProxy(planosUrl, corsProxies['allorigins']);
-                            setWarning('Usando proxy alternativo. A conexão pode estar mais lenta.');
-                        } else {
-                            throw err;
-                        }
-                    }
-                    
+                    console.log('Consultando planos de ação...');
+
+                    const planos = await fetchWithAutoProxy(planosUrl);
                     console.log(`Encontrados ${planos.length} planos de ação`);
 
                     // Limitar requisições paralelas para evitar sobrecarga - OTIMIZADO
@@ -702,9 +843,8 @@
                             batch.map(async (plano) => {
                                 try {
                                     // Buscar empenhos
-                                    const empenhos = await fetchWithProxy(
-                                        `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                        proxyUrl
+                                    const empenhos = await fetchWithAutoProxy(
+                                        `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`
                                     ).catch(() => []);
 
                                     // Para cada empenho, buscar documentos hábeis (valores liquidados/pagos)
@@ -712,9 +852,8 @@
                                     const documentosHabeis = [];
 
                                     for (const empenho of empenhos) {
-                                        const dhs = await fetchWithProxy(
-                                            `${baseUrl}/documento_habil_especial?id_empenho=eq.${empenho.id_empenho}`,
-                                            proxyUrl
+                                        const dhs = await fetchWithAutoProxy(
+                                            `${baseUrl}/documento_habil_especial?id_empenho=eq.${empenho.id_empenho}`
                                         ).catch(() => []);
 
                                         documentosHabeis.push(...dhs);
@@ -726,9 +865,8 @@
                                     }
 
                                     // Buscar executores do plano de ação
-                                    const executores = await fetchWithProxy(
-                                        `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                        proxyUrl
+                                    const executores = await fetchWithAutoProxy(
+                                        `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`
                                     ).catch(() => []);
 
                                     return {
@@ -770,7 +908,7 @@
                         setData(cached.data);
                         setWarning(`Erro na conexão. Usando dados do cache de ${new Date(cached.timestamp).toLocaleString('pt-BR')}`);
                     } else {
-                        setError(`Erro: ${err.message}. Tente novamente ou mude o proxy nas opções.`);
+                        setError(`Erro na conexão com a API. Por favor, tente novamente em alguns instantes.`);
                     }
                 } finally {
                     setLoading(false);
@@ -938,8 +1076,8 @@
                             <div className="info-banner-content">
                                 <div className="info-banner-title">Informações Importantes</div>
                                 <div className="info-banner-text">
-                                    Os dados são obtidos da API do Transferegov.br com atualização D+1. 
-                                    Se houver erro de conexão, tente trocar o proxy ou usar dados em cache.
+                                    Os dados são obtidos da API do Transferegov.br com atualização D+1.
+                                    O sistema utiliza cache para melhorar o desempenho e garantir acesso aos dados mesmo em caso de falhas temporárias de conexão.
                                 </div>
                             </div>
                         </div>
@@ -947,39 +1085,26 @@
                         <div className="controls">
                             <div className="control-group">
                                 <label>CNPJ Beneficiário</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={formatCNPJ(cnpj)}
                                     disabled
                                     style={{ width: '200px' }}
                                 />
                             </div>
-                            
+
                             <div className="control-group">
                                 <label>Ano</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={ano}
                                     onChange={(e) => setAno(e.target.value)}
                                     style={{ width: '100px' }}
                                 />
                             </div>
-                            
-                            <div className="control-group">
-                                <label>Proxy CORS</label>
-                                <select 
-                                    value={proxyOption}
-                                    onChange={(e) => setProxyOption(e.target.value)}
-                                    style={{ width: '150px' }}
-                                >
-                                    <option value="corsproxy">CorsProxy.io</option>
-                                    <option value="allorigins">AllOrigins</option>
-                                    <option value="direct">Direto (sem proxy)</option>
-                                </select>
-                            </div>
-                            
-                            <button 
-                                className="btn" 
+
+                            <button
+                                className="btn"
                                 onClick={() => fetchData(true)}
                                 disabled={loading}
                             >
