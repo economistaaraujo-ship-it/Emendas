@@ -725,11 +725,18 @@
                                         });
                                     }
 
+                                    // Buscar executores do plano de ação
+                                    const executores = await fetchWithProxy(
+                                        `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                        proxyUrl
+                                    ).catch(() => []);
+
                                     return {
                                         ...plano,
                                         empenhos,
                                         documentosHabeis,
-                                        valorLiberado
+                                        valorLiberado,
+                                        executores
                                     };
                                 } catch (err) {
                                     console.error('Erro ao buscar dados do plano:', err);
@@ -737,7 +744,8 @@
                                         ...plano,
                                         empenhos: [],
                                         documentosHabeis: [],
-                                        valorLiberado: 0
+                                        valorLiberado: 0,
+                                        executores: []
                                     };
                                 }
                             })
@@ -826,11 +834,56 @@
                     }
                 });
                 
+                // Preparar dados da tabela de executores
+                const executoresTableData = [];
+                data.planos.forEach(plano => {
+                    if (plano.executores && plano.executores.length > 0) {
+                        plano.executores.forEach(executor => {
+                            const valorCusteio = parseFloat(executor.vl_custeio_executor || 0);
+                            const valorInvestimento = parseFloat(executor.vl_investimento_executor || 0);
+
+                            if (valorCusteio > 0) {
+                                executoresTableData.push({
+                                    'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                                    'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                                    'Executor': executor.nome_executor || '-',
+                                    'CNPJ Executor': executor.cnpj_executor || '-',
+                                    'Modalidade': 'CUSTEIO',
+                                    'Valor': valorCusteio,
+                                    'Banco': executor.nome_banco_executor || '-',
+                                    'Agência': `${executor.numero_agencia_executor || ''}${executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}`,
+                                    'Conta': `${executor.numero_conta_executor || ''}${executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}`
+                                });
+                            }
+
+                            if (valorInvestimento > 0) {
+                                executoresTableData.push({
+                                    'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                                    'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                                    'Executor': executor.nome_executor || '-',
+                                    'CNPJ Executor': executor.cnpj_executor || '-',
+                                    'Modalidade': 'INVESTIMENTO',
+                                    'Valor': valorInvestimento,
+                                    'Banco': executor.nome_banco_executor || '-',
+                                    'Agência': `${executor.numero_agencia_executor || ''}${executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}`,
+                                    'Conta': `${executor.numero_conta_executor || ''}${executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}`
+                                });
+                            }
+                        });
+                    }
+                });
+
                 // Criar workbook
                 const wb = XLSX.utils.book_new();
                 const ws1 = XLSX.utils.json_to_sheet(mainTableData);
                 XLSX.utils.book_append_sheet(wb, ws1, "Emendas Parlamentares");
-                
+
+                // Adicionar aba de executores se houver dados
+                if (executoresTableData.length > 0) {
+                    const ws2 = XLSX.utils.json_to_sheet(executoresTableData);
+                    XLSX.utils.book_append_sheet(wb, ws2, "Executores Finais");
+                }
+
                 // Gerar arquivo
                 const fileName = `transferencias_especiais_${cnpj}_${ano}_${new Date().toISOString().split('T')[0]}.xlsx`;
                 XLSX.writeFile(wb, fileName);
@@ -1182,7 +1235,131 @@
                                         </tfoot>
                                     </table>
                                 </div>
-                                
+
+                                <h2 className="section-title">Executores Finais dos Recursos</h2>
+
+                                <div className="nota-box">
+                                    <strong>ℹ️ Sobre os Executores:</strong>
+                                    <div style={{ marginTop: '8px' }}>
+                                        Os executores finais são órgãos, secretarias e entidades responsáveis pela execução finalística das políticas públicas financiadas pelas emendas parlamentares.
+                                        Após o recurso ser transferido para a conta do ente público (Estado/Município), ele é repassado para essas instituições que implementam efetivamente os projetos.
+                                    </div>
+                                </div>
+
+                                <div className="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Nº Emenda</th>
+                                                <th>Parlamentar</th>
+                                                <th>Executor</th>
+                                                <th>CNPJ</th>
+                                                <th>Modalidade</th>
+                                                <th>Valor</th>
+                                                <th>Banco</th>
+                                                <th>Agência</th>
+                                                <th>Conta</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(() => {
+                                                const executorRows = [];
+                                                let totalExecutores = 0;
+
+                                                data.planos.forEach((plano, planoIdx) => {
+                                                    if (plano.executores && plano.executores.length > 0) {
+                                                        plano.executores.forEach((executor, execIdx) => {
+                                                            const valorCusteio = parseFloat(executor.vl_custeio_executor || 0);
+                                                            const valorInvestimento = parseFloat(executor.vl_investimento_executor || 0);
+
+                                                            // Linha para CUSTEIO
+                                                            if (valorCusteio > 0) {
+                                                                totalExecutores += valorCusteio;
+                                                                executorRows.push(
+                                                                    <tr key={`exec-${planoIdx}-${execIdx}-custeio`}>
+                                                                        <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                        <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                        <td>
+                                                                            <div className="executor-info">
+                                                                                <span className="executor-name">{executor.nome_executor || '-'}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="executor-cnpj">{formatCNPJ(executor.cnpj_executor)}</span>
+                                                                        </td>
+                                                                        <td>CUSTEIO</td>
+                                                                        <td className="currency">{formatCurrency(valorCusteio)}</td>
+                                                                        <td>{executor.nome_banco_executor || '-'}</td>
+                                                                        <td>
+                                                                            {executor.numero_agencia_executor}
+                                                                            {executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}
+                                                                        </td>
+                                                                        <td>
+                                                                            {executor.numero_conta_executor}
+                                                                            {executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+
+                                                            // Linha para INVESTIMENTO
+                                                            if (valorInvestimento > 0) {
+                                                                totalExecutores += valorInvestimento;
+                                                                executorRows.push(
+                                                                    <tr key={`exec-${planoIdx}-${execIdx}-investimento`}>
+                                                                        <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                        <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                        <td>
+                                                                            <div className="executor-info">
+                                                                                <span className="executor-name">{executor.nome_executor || '-'}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="executor-cnpj">{formatCNPJ(executor.cnpj_executor)}</span>
+                                                                        </td>
+                                                                        <td>INVESTIMENTO</td>
+                                                                        <td className="currency">{formatCurrency(valorInvestimento)}</td>
+                                                                        <td>{executor.nome_banco_executor || '-'}</td>
+                                                                        <td>
+                                                                            {executor.numero_agencia_executor}
+                                                                            {executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}
+                                                                        </td>
+                                                                        <td>
+                                                                            {executor.numero_conta_executor}
+                                                                            {executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+                                                        });
+                                                    }
+                                                });
+
+                                                if (executorRows.length === 0) {
+                                                    return (
+                                                        <tr>
+                                                            <td colSpan="9" className="no-data">
+                                                                Nenhum executor encontrado para os planos de ação
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <>
+                                                        {executorRows}
+                                                        <tr style={{ fontWeight: 'bold', backgroundColor: '#252525' }}>
+                                                            <td colSpan="5">VALOR TOTAL DOS EXECUTORES</td>
+                                                            <td className="currency">{formatCurrency(totalExecutores)}</td>
+                                                            <td colSpan="3"></td>
+                                                        </tr>
+                                                    </>
+                                                );
+                                            })()}
+                                        </tbody>
+                                    </table>
+                                </div>
+
                                 <div className="footer">
                                     <p>Sistema desenvolvido pelo Tesouro Estadual | SEFAZ-ES</p>
                                     <p>Dados da API Transferegov.br - Atualização: D+1</p>
