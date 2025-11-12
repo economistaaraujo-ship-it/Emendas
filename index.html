@@ -701,28 +701,28 @@
                         const batchResults = await Promise.all(
                             batch.map(async (plano) => {
                                 try {
-                                    // Buscar empenhos e liberações (removido executores - não usado)
-                                    const [empenhos, liberacoes] = await Promise.all([
+                                    // Buscar empenhos e relatórios de gestão (valor executado)
+                                    const [empenhos, relatorios] = await Promise.all([
                                         fetchWithProxy(
                                             `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
                                             proxyUrl
                                         ).catch(() => []),
                                         fetchWithProxy(
-                                            `${baseUrl}/libera_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
+                                            `${baseUrl}/relatorio_gestao_novo_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
                                             proxyUrl
                                         ).catch(() => [])
                                     ]);
 
-                                    // Calcular valor total liberado
-                                    const valorLiberado = liberacoes.reduce(
-                                        (sum, lib) => sum + parseFloat(lib.valor_liberado || 0),
+                                    // Calcular valor total executado (liberado) dos relatórios de gestão
+                                    const valorLiberado = relatorios.reduce(
+                                        (sum, rel) => sum + parseFloat(rel.valor_executado_relatorio_gestao_novo || 0),
                                         0
                                     );
 
                                     return {
                                         ...plano,
                                         empenhos,
-                                        liberacoes,
+                                        relatorios,
                                         valorLiberado
                                     };
                                 } catch (err) {
@@ -730,7 +730,7 @@
                                     return {
                                         ...plano,
                                         empenhos: [],
-                                        liberacoes: [],
+                                        relatorios: [],
                                         valorLiberado: 0
                                     };
                                 }
@@ -771,7 +771,22 @@
                 data.planos.forEach(plano => {
                     const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
                     const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
-                    
+                    const valorTotal = valorCusteio + valorInvestimento;
+                    const valorLiberadoTotal = parseFloat(plano.valorLiberado || 0);
+
+                    // Distribuir valor liberado proporcionalmente entre custeio e investimento
+                    const valorLiberadoCusteio = valorTotal > 0 ? (valorLiberadoTotal * valorCusteio / valorTotal) : 0;
+                    const valorLiberadoInvestimento = valorTotal > 0 ? (valorLiberadoTotal * valorInvestimento / valorTotal) : 0;
+
+                    // Calcular valores empenhados por categoria
+                    const valorEmpenhadoCusteio = plano.empenhos ? plano.empenhos
+                        .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                        .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0;
+
+                    const valorEmpenhadoInvestimento = plano.empenhos ? plano.empenhos
+                        .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                        .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0;
+
                     if (valorCusteio > 0) {
                         mainTableData.push({
                             'Código Plano': plano.codigo_plano_acao || '-',
@@ -783,15 +798,11 @@
                             'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
                             'Situação': plano.situacao_plano_acao || 'Aguardando',
                             'Valor Total': valorCusteio,
-                            'Valor Empenhado': plano.empenhos ? plano.empenhos
-                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0,
-                            'Valor Liberado': plano.liberacoes ? plano.liberacoes
-                                .filter(lib => lib.categoria_despesa_liberacao === 'CUSTEIO')
-                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0) : 0
+                            'Valor Empenhado': valorEmpenhadoCusteio,
+                            'Valor Liberado': valorLiberadoCusteio
                         });
                     }
-                    
+
                     if (valorInvestimento > 0) {
                         mainTableData.push({
                             'Código Plano': plano.codigo_plano_acao || '-',
@@ -803,12 +814,8 @@
                             'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
                             'Situação': plano.situacao_plano_acao || 'Aguardando',
                             'Valor Total': valorInvestimento,
-                            'Valor Empenhado': plano.empenhos ? plano.empenhos
-                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0,
-                            'Valor Liberado': plano.liberacoes ? plano.liberacoes
-                                .filter(lib => lib.categoria_despesa_liberacao === 'INVESTIMENTO')
-                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0) : 0
+                            'Valor Empenhado': valorEmpenhadoInvestimento,
+                            'Valor Liberado': valorLiberadoInvestimento
                         });
                     }
                 });
@@ -1040,8 +1047,25 @@
                                                 data.planos.map((plano, index) => {
                                                     const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
                                                     const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
+                                                    const valorTotal = valorCusteio + valorInvestimento;
+                                                    const valorLiberadoTotal = parseFloat(plano.valorLiberado || 0);
                                                     const urlPlano = buildPlanoAcaoUrl(plano.codigo_plano_acao);
-                                                    
+
+                                                    // Distribuir valor liberado proporcionalmente
+                                                    const valorLiberadoCusteio = valorTotal > 0 ? (valorLiberadoTotal * valorCusteio / valorTotal) : 0;
+                                                    const valorLiberadoInvestimento = valorTotal > 0 ? (valorLiberadoTotal * valorInvestimento / valorTotal) : 0;
+
+                                                    // Calcular valores empenhados por categoria
+                                                    const valorEmpenhadoCusteio = plano.empenhos
+                                                        ? plano.empenhos.filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                                                            .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                        : 0;
+
+                                                    const valorEmpenhadoInvestimento = plano.empenhos
+                                                        ? plano.empenhos.filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                                                            .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                        : 0;
+
                                                     const rows = [];
                                                     
                                                     // Linha para CUSTEIO
@@ -1082,24 +1106,8 @@
                                                                     </span>
                                                                 </td>
                                                                 <td className="currency">{formatCurrency(valorCusteio)}</td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.empenhos
-                                                                            ? plano.empenhos
-                                                                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
-                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.liberacoes && plano.liberacoes.length > 0
-                                                                            ? plano.liberacoes
-                                                                                .filter(lib => lib.categoria_despesa_liberacao === 'CUSTEIO')
-                                                                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorEmpenhadoCusteio)}</td>
+                                                                <td className="currency">{formatCurrency(valorLiberadoCusteio)}</td>
                                                             </tr>
                                                         );
                                                     }
@@ -1142,24 +1150,8 @@
                                                                     </span>
                                                                 </td>
                                                                 <td className="currency">{formatCurrency(valorInvestimento)}</td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.empenhos
-                                                                            ? plano.empenhos
-                                                                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
-                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.liberacoes && plano.liberacoes.length > 0
-                                                                            ? plano.liberacoes
-                                                                                .filter(lib => lib.categoria_despesa_liberacao === 'INVESTIMENTO')
-                                                                                .reduce((sum, lib) => sum + parseFloat(lib.valor_liberado || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorEmpenhadoInvestimento)}</td>
+                                                                <td className="currency">{formatCurrency(valorLiberadoInvestimento)}</td>
                                                             </tr>
                                                         );
                                                     }
