@@ -2,6 +2,28 @@
 
 Sistema web para consulta e acompanhamento de transferências especiais (emendas parlamentares) para o Estado do Espírito Santo.
 
+## ⚠️ Status Atual da API (Novembro 2025)
+
+**A API do Transferegov.br está respondendo mas retornando dados vazios.**
+
+Testes realizados confirmam:
+- ✅ API está online (HTTP 200)
+- ✅ Headers corretos (PostgREST)
+- ❌ Todos os endpoints retornam `[]` (array vazio)
+- ❌ Mesmo anos anteriores (2022, 2023, 2024) não retornam dados
+
+**Possíveis causas:**
+- Manutenção/migração de dados em andamento
+- Dados arquivados ou removidos
+- Mudança para autenticação obrigatória (não documentada)
+- Problema técnico no banco de dados
+
+**Recomendação:** Entre em contato com o suporte do Transferegov.br para esclarecimentos.
+
+O sistema está **pronto e funcionará automaticamente** quando a API voltar com dados. Enquanto isso, o sistema de cache garante disponibilidade dos últimos dados obtidos.
+
+---
+
 ## Sobre
 
 O sistema consulta dados da API oficial do Transferegov.br e apresenta informações detalhadas sobre:
