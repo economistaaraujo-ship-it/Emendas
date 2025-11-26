@@ -9,6 +9,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -455,6 +456,248 @@
             color: #6b7280;
             margin-top: 10px;
         }
+
+        /* Navigation Styles */
+        .nav-container {
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 0;
+            list-style: none;
+        }
+
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 24px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            color: #e5e5e5;
+            background: #252525;
+        }
+
+        .nav-link.active {
+            color: #e5e5e5;
+            border-bottom-color: #4f46e5;
+        }
+
+        .nav-icon {
+            font-size: 18px;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #e5e5e5;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        /* Dashboard Styles */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e5e5e5;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* About Section Styles */
+        .about-section {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .about-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .about-card h2 {
+            color: #e5e5e5;
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .about-card h3 {
+            color: #e5e5e5;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .about-card p {
+            color: #9ca3af;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .about-card ul {
+            margin-left: 25px;
+            margin-bottom: 15px;
+        }
+
+        .about-card li {
+            color: #9ca3af;
+            line-height: 1.8;
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box strong {
+            color: #60a5fa;
+        }
+
+        /* Page Content */
+        .page-content {
+            display: none;
+        }
+
+        .page-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .header-title h1 {
+                font-size: 18px;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .nav-menu {
+                display: none;
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: #1a1a1a;
+                border-bottom: 1px solid #2a2a2a;
+            }
+
+            .nav-menu.mobile-open {
+                display: flex;
+            }
+
+            .nav-link {
+                border-bottom: none;
+                border-left: 3px solid transparent;
+            }
+
+            .nav-link.active {
+                border-bottom: none;
+                border-left-color: #4f46e5;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .container {
+                padding: 0 15px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group input,
+            .control-group select {
+                width: 100% !important;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -473,13 +716,55 @@
             </div>
         </div>
     </div>
-    
+
+    <div id="navigation"></div>
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
-        
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // Navigation Component
+        function Navigation({ currentPage, onPageChange }) {
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+            const pages = [
+                { id: 'dashboard', name: 'Dashboard', icon: '📊' },
+                { id: 'consulta', name: 'Consulta Detalhada', icon: '🔍' },
+                { id: 'about', name: 'Saiba Mais', icon: '📚' }
+            ];
+
+            return (
+                <nav className="nav-container">
+                    <div className="nav-content">
+                        <ul className={`nav-menu ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+                            {pages.map(page => (
+                                <li key={page.id} className="nav-item">
+                                    <a
+                                        className={`nav-link ${currentPage === page.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            onPageChange(page.id);
+                                            setMobileMenuOpen(false);
+                                        }}
+                                    >
+                                        <span className="nav-icon">{page.icon}</span>
+                                        <span>{page.name}</span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                        <button
+                            className="mobile-menu-btn"
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        >
+                            {mobileMenuOpen ? '✕' : '☰'}
+                        </button>
+                    </div>
+                </nav>
+            );
+        }
+
         function TransfereggovConsulta() {
+            const [currentPage, setCurrentPage] = useState('dashboard');
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
             const [warning, setWarning] = useState(null);
@@ -489,6 +774,11 @@
             const [ano, setAno] = useState('2025');
             const [useCache, setUseCache] = useState(false);
             const [proxyOption, setProxyOption] = useState('corsproxy');
+
+            const barChartRef = useRef(null);
+            const pieChartRef = useRef(null);
+            const barChartInstance = useRef(null);
+            const pieChartInstance = useRef(null);
             
             // Lista de proxies CORS para fallback
             const corsProxies = {
@@ -814,22 +1104,409 @@
             useEffect(() => {
                 fetchData();
             }, []);
-            
+
+            // Create charts when data changes and dashboard is active
+            useEffect(() => {
+                if (currentPage === 'dashboard' && data && data.planos) {
+                    setTimeout(() => {
+                        createCharts();
+                    }, 100);
+                }
+
+                return () => {
+                    if (barChartInstance.current) {
+                        barChartInstance.current.destroy();
+                    }
+                    if (pieChartInstance.current) {
+                        pieChartInstance.current.destroy();
+                    }
+                };
+            }, [currentPage, data]);
+
+            const createCharts = () => {
+                if (!barChartRef.current || !pieChartRef.current) return;
+
+                // Destroy existing charts
+                if (barChartInstance.current) {
+                    barChartInstance.current.destroy();
+                }
+                if (pieChartInstance.current) {
+                    pieChartInstance.current.destroy();
+                }
+
+                const totals = calculateTotals();
+
+                // Bar Chart - Valor por Ano
+                const barCtx = barChartRef.current.getContext('2d');
+                barChartInstance.current = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['2021', '2022', '2023', '2024', '2025'],
+                        datasets: [{
+                            label: 'Valor Total (R$ Mi)',
+                            data: [
+                                1.75,
+                                1.57,
+                                13.87,
+                                26.59,
+                                totals.totalGeral / 1000000
+                            ],
+                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 2,
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: '#1a1a1a',
+                                titleColor: '#e5e5e5',
+                                bodyColor: '#9ca3af',
+                                borderColor: '#2a2a2a',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'R$ ' + context.parsed.y.toFixed(2) + ' Mi';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#9ca3af',
+                                    callback: function(value) {
+                                        return 'R$ ' + value + ' Mi';
+                                    }
+                                },
+                                grid: {
+                                    color: '#2a2a2a'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#9ca3af'
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Pie Chart - Distribuição Custeio vs Investimento
+                const pieCtx = pieChartRef.current.getContext('2d');
+                pieChartInstance.current = new Chart(pieCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Custeio', 'Investimento'],
+                        datasets: [{
+                            data: [totals.totalCusteio, totals.totalInvestimento],
+                            backgroundColor: [
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(79, 70, 229, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(16, 185, 129, 1)',
+                                'rgba(79, 70, 229, 1)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#9ca3af',
+                                    padding: 15,
+                                    font: {
+                                        size: 13
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1a1a1a',
+                                titleColor: '#e5e5e5',
+                                bodyColor: '#9ca3af',
+                                borderColor: '#2a2a2a',
+                                borderWidth: 1,
+                                padding: 12,
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return context.label + ': R$ ' + (value / 1000000).toFixed(2) + ' Mi (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
             const totals = calculateTotals();
-            
-            return (
-                <div className="container">
-                    <div className="card">
-                        <div className="info-banner">
-                            <div className="info-banner-icon">ℹ️</div>
-                            <div className="info-banner-content">
-                                <div className="info-banner-title">Informações Importantes</div>
-                                <div className="info-banner-text">
-                                    Os dados são obtidos da API do Transferegov.br com atualização D+1. 
-                                    Se houver erro de conexão, tente trocar o proxy ou usar dados em cache.
-                                </div>
+
+            // Dashboard Page Component
+            const DashboardPage = () => (
+                <div className="page-content active">
+                    <div className="info-banner">
+                        <div className="info-banner-icon">📊</div>
+                        <div className="info-banner-content">
+                            <div className="info-banner-title">Visão Geral das Transferências Especiais</div>
+                            <div className="info-banner-text">
+                                Acompanhe os indicadores principais e evolução histórica dos recursos de emendas parlamentares recebidos pelo Estado do Espírito Santo.
                             </div>
                         </div>
+                    </div>
+
+                    <div className="stats">
+                        <div className="stat-card">
+                            <h3>Valor Total</h3>
+                            <div className="value">{formatCurrency(totals.totalGeral)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <h3>Total Custeio</h3>
+                            <div className="value">{formatCurrency(totals.totalCusteio)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <h3>Total Investimento</h3>
+                            <div className="value">{formatCurrency(totals.totalInvestimento)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <h3>Total Empenhado</h3>
+                            <div className="value">{formatCurrency(totals.totalEmpenhado)}</div>
+                        </div>
+                        <div className="stat-card highlight">
+                            <h3>Total Liberado</h3>
+                            <div className="value">{formatCurrency(totals.totalLiberado)}</div>
+                        </div>
+                    </div>
+
+                    <div className="dashboard-grid">
+                        <div className="chart-card">
+                            <div className="chart-title">
+                                <span>📈</span>
+                                <span>Valor do Plano de Ação por Ano da Emenda</span>
+                            </div>
+                            <div className="chart-container">
+                                <canvas ref={barChartRef}></canvas>
+                            </div>
+                        </div>
+
+                        <div className="chart-card">
+                            <div className="chart-title">
+                                <span>🎯</span>
+                                <span>Distribuição: Custeio vs Investimento</span>
+                            </div>
+                            <div className="chart-container">
+                                <canvas ref={pieChartRef}></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="nota-box">
+                        <strong>Sobre os dados:</strong> Os valores apresentados refletem as transferências especiais (emendas parlamentares)
+                        da União para o Estado do Espírito Santo, obtidos diretamente da API do Transferegov.br com atualização D+1.
+                        Para consultar detalhes específicos de cada emenda, acesse a aba "Consulta Detalhada".
+                    </div>
+                </div>
+            );
+
+            // About Page Component
+            const AboutPage = () => (
+                <div className="page-content active">
+                    <div className="about-section">
+                        <div className="about-card">
+                            <h2>📚 O que são Transferências Especiais?</h2>
+                            <p>
+                                As Transferências Especiais são recursos financeiros repassados pela União aos Estados, Distrito Federal
+                                e Municípios por meio das <strong>Emendas Parlamentares</strong>, conforme estabelecido pela Constituição Federal.
+                            </p>
+                            <p>
+                                Esses recursos fazem parte do orçamento federal e são destinados para implementação de políticas públicas
+                                e investimentos em áreas prioritárias como saúde, educação, infraestrutura e assistência social.
+                            </p>
+                        </div>
+
+                        <div className="about-card">
+                            <h2>🎯 Tipos de Emendas Parlamentares</h2>
+
+                            <h3>1. Emendas Individuais</h3>
+                            <p>
+                                Apresentadas por deputados federais e senadores individualmente. Cada parlamentar pode destinar recursos
+                                para projetos específicos em seu estado ou município de interesse.
+                            </p>
+
+                            <h3>2. Emendas de Bancada</h3>
+                            <p>
+                                Propostas em conjunto pelos parlamentares de um mesmo estado. Geralmente são direcionadas para projetos
+                                de maior porte e abrangência regional.
+                            </p>
+
+                            <h3>3. Emendas de Comissão</h3>
+                            <p>
+                                Elaboradas pelas comissões temáticas do Congresso Nacional (saúde, educação, infraestrutura, etc.)
+                                para atender demandas setoriais específicas.
+                            </p>
+
+                            <div className="highlight-box">
+                                <strong>Importante:</strong> A partir de 2020, a Emenda Constitucional nº 105/2019 instituiu o
+                                "orçamento impositivo", tornando obrigatória a execução das emendas individuais e de bancada,
+                                garantindo maior previsibilidade no repasse dos recursos.
+                            </div>
+                        </div>
+
+                        <div className="about-card">
+                            <h2>💰 Categorias de Despesa</h2>
+
+                            <h3>Custeio</h3>
+                            <p>
+                                Recursos destinados à manutenção e operação de serviços públicos já existentes. Exemplos incluem:
+                            </p>
+                            <ul>
+                                <li>Pagamento de pessoal e encargos</li>
+                                <li>Compra de materiais de consumo</li>
+                                <li>Manutenção de equipamentos e instalações</li>
+                                <li>Serviços de terceiros</li>
+                            </ul>
+
+                            <h3>Investimento</h3>
+                            <p>
+                                Recursos aplicados em obras e aquisição de bens permanentes que ampliam a capacidade de prestação
+                                de serviços públicos. Exemplos:
+                            </p>
+                            <ul>
+                                <li>Construção e reforma de escolas, hospitais e estradas</li>
+                                <li>Aquisição de equipamentos médicos e veículos</li>
+                                <li>Implementação de sistemas e infraestrutura tecnológica</li>
+                                <li>Obras de saneamento e urbanização</li>
+                            </ul>
+                        </div>
+
+                        <div className="about-card">
+                            <h2>📋 Fluxo de Execução</h2>
+                            <p>O processo de execução das transferências especiais segue as seguintes etapas:</p>
+                            <ul>
+                                <li><strong>1. Apresentação:</strong> Parlamentar apresenta a emenda ao orçamento federal</li>
+                                <li><strong>2. Aprovação:</strong> Emenda é aprovada no Congresso Nacional</li>
+                                <li><strong>3. Plano de Ação:</strong> Estado/Município elabora plano de ação detalhando a aplicação dos recursos</li>
+                                <li><strong>4. Análise Técnica:</strong> Ministério responsável avalia e aprova o plano de ação</li>
+                                <li><strong>5. Empenho:</strong> Recursos são reservados no orçamento federal</li>
+                                <li><strong>6. Transferência:</strong> Valores são depositados na conta específica do beneficiário</li>
+                                <li><strong>7. Execução:</strong> Estado/Município executa o projeto conforme planejado</li>
+                                <li><strong>8. Prestação de Contas:</strong> Comprovação da correta aplicação dos recursos</li>
+                            </ul>
+                        </div>
+
+                        <div className="about-card">
+                            <h2>🔍 Transparência e Controle</h2>
+                            <p>
+                                Este sistema utiliza dados da <strong>API Transferegov.br</strong>, plataforma oficial do Governo Federal
+                                que promove a transparência na execução das transferências especiais.
+                            </p>
+                            <p>
+                                Todos os cidadãos podem acompanhar em tempo real:
+                            </p>
+                            <ul>
+                                <li>Valores destinados a cada estado e município</li>
+                                <li>Situação de cada plano de ação (ativo, aguardando, impedido)</li>
+                                <li>Valores empenhados e efetivamente transferidos</li>
+                                <li>Identificação dos parlamentares responsáveis pelas emendas</li>
+                            </ul>
+
+                            <div className="highlight-box">
+                                <strong>Acesse:</strong> Para mais informações sobre transferências especiais, visite
+                                <a href="https://www.gov.br/transferegov" target="_blank" rel="noopener" style="color: #60a5fa; margin-left: 5px;">
+                                    www.gov.br/transferegov
+                                </a>
+                            </div>
+                        </div>
+
+                        <div className="about-card">
+                            <h2>ℹ️ Sobre Este Sistema</h2>
+                            <p>
+                                Este sistema foi desenvolvido pelo <strong>Tesouro Estadual da SEFAZ-ES</strong> para facilitar
+                                o acompanhamento e gestão das transferências especiais recebidas pelo Estado do Espírito Santo.
+                            </p>
+                            <p>
+                                <strong>Funcionalidades:</strong>
+                            </p>
+                            <ul>
+                                <li>Dashboard com visão consolidada dos recursos</li>
+                                <li>Consulta detalhada por emenda parlamentar</li>
+                                <li>Exportação de dados para Excel</li>
+                                <li>Sistema de cache para consultas mais rápidas</li>
+                                <li>Atualizaçãoautomática dos dados (D+1)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <>
+                    <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
+                    <div className="container">
+
+                        {/* Dashboard Page */}
+                        {currentPage === 'dashboard' && (
+                            <>
+                                {loading && (
+                                    <div className="loading">
+                                        <div className="loading-spinner"></div>
+                                        Carregando dados do Transferegov...
+                                    </div>
+                                )}
+
+                                {data && !loading && <DashboardPage />}
+
+                                {!data && !loading && (
+                                    <div className="card">
+                                        <div className="info-banner">
+                                            <div className="info-banner-icon">ℹ️</div>
+                                            <div className="info-banner-content">
+                                                <div className="info-banner-title">Bem-vindo ao Sistema de Transferências Especiais</div>
+                                                <div className="info-banner-text">
+                                                    Os dados estão sendo carregados automaticamente. Aguarde...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* About Page */}
+                        {currentPage === 'about' && <AboutPage />}
+
+                        {/* Consulta Detalhada Page */}
+                        {currentPage === 'consulta' && (
+                            <div className="page-content active">
+                                <div className="card">
+                                    <div className="info-banner">
+                                        <div className="info-banner-icon">ℹ️</div>
+                                        <div className="info-banner-content">
+                                            <div className="info-banner-title">Informações Importantes</div>
+                                            <div className="info-banner-text">
+                                                Os dados são obtidos da API do Transferegov.br com atualização D+1.
+                                                Se houver erro de conexão, tente trocar o proxy ou usar dados em cache.
+                                            </div>
+                                        </div>
+                                    </div>
                         
                         <div className="controls">
                             <div className="control-group">
@@ -1113,11 +1790,14 @@
                                 </div>
                             </>
                         )}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </>
             );
         }
-        
+
         ReactDOM.render(<TransfereggovConsulta />, document.getElementById('root'));
     </script>
 </body>
