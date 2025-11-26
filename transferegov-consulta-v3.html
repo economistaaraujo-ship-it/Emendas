@@ -541,14 +541,16 @@
             
             // Função corrigida para construir URL do plano de ação
             const buildPlanoAcaoUrl = (codigoPlanoAcao) => {
-                // Formato: 09032025-077878
-                // Extrair apenas o ID numérico após o hífen
+                // Formatos aceitos:
+                // - 09032025-077878 (2 partes)
+                // - 09032025-2-086352 (3 partes, onde o "2" indica alguma característica do plano)
                 if (!codigoPlanoAcao) return null;
-                
+
                 const parts = codigoPlanoAcao.split('-');
-                if (parts.length !== 2) return null;
-                
-                const idPlano = parts[1];
+                if (parts.length < 2) return null;
+
+                // Pega sempre a última parte como ID do plano
+                const idPlano = parts[parts.length - 1];
                 return `https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/detalhe/${idPlano}/dados-basicos`;
             };
             
