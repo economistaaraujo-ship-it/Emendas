@@ -1,65 +1,112 @@
 # Sistema de Consulta de Transferências Especiais - SEFAZ-ES
 
-Sistema web para consulta e acompanhamento de transferências especiais (emendas parlamentares) através da API do Transferegov.br.
+Sistema web para consulta e acompanhamento de transferências especiais (emendas parlamentares) para o Estado do Espírito Santo.
 
-## 🚀 Funcionalidades
+## ⚠️ Status Atual da API (Novembro 2025)
 
-- ✅ Consulta de transferências especiais por CNPJ e ano
-- 📊 Visualização detalhada de emendas parlamentares
-- 💰 Separação por categoria (Custeio e Investimento)
-- 📈 Estatísticas e totalizadores em tempo real
-- 💾 Sistema de cache para melhor performance
-- 📥 Exportação para Excel
-- 🔗 Links diretos para detalhes no Transferegov
-- 🎨 Interface moderna e responsiva com tema dark
+**A API do Transferegov.br está respondendo mas retornando dados vazios.**
 
-## 🛠️ Tecnologias
+Testes realizados confirmam:
+- ✅ API está online (HTTP 200)
+- ✅ Headers corretos (PostgREST)
+- ❌ Todos os endpoints retornam `[]` (array vazio)
+- ❌ Mesmo anos anteriores (2022, 2023, 2024) não retornam dados
 
-- HTML5 + CSS3
-- React 18 (via CDN)
-- SheetJS (XLSX) para exportação
-- API Transferegov.br
-- Proxy CORS para acesso à API
+**Possíveis causas:**
+- Manutenção/migração de dados em andamento
+- Dados arquivados ou removidos
+- Mudança para autenticação obrigatória (não documentada)
+- Problema técnico no banco de dados
 
-## 📦 Estrutura
+**Recomendação:** Entre em contato com o suporte do Transferegov.br para esclarecimentos.
+
+O sistema está **pronto e funcionará automaticamente** quando a API voltar com dados. Enquanto isso, o sistema de cache garante disponibilidade dos últimos dados obtidos.
+
+---
+
+## Sobre
+
+O sistema consulta dados da API oficial do Transferegov.br e apresenta informações detalhadas sobre:
+- Emendas parlamentares e seus valores
+- Status de execução e liberação de recursos
+- Executores finais das políticas públicas
+- Informações bancárias para acompanhamento
+
+## Sistema de Cache Resiliente
+
+O sistema implementa múltiplas camadas de backup automático para garantir disponibilidade contínua:
+
+### 1. Cache de Sessão (30 minutos)
+- Armazenado no navegador durante a sessão
+- Acesso mais rápido aos dados recentes
+- Limpo ao fechar o navegador
+
+### 2. Cache Persistente (7 dias)
+- Armazenado localmente no navegador
+- Mantém dados mesmo após fechar o navegador
+- Fallback automático quando API não responde
+
+### 3. Cache Comunitário (GitHub)
+- Arquivo `cache_data.json` no repositório
+- Serve como último backup quando todos os caches locais falharem
+- **Pode ser atualizado manualmente quando necessário**
+
+## Como Atualizar o Cache Comunitário
+
+Se você conseguir acessar a API com sucesso e quiser atualizar o backup comunitário:
+
+1. Abra o Console do Desenvolvedor do navegador (F12)
+2. Execute o seguinte comando:
+```javascript
+// Após carregar dados com sucesso, execute:
+console.log(JSON.stringify({
+    planos: window.dataCache.planos,
+    timestamp: new Date().getTime(),
+    cnpj: "27080530000143",
+    ano: "2025",
+    version: "1.0"
+}, null, 2));
+```
+3. Copie o resultado e atualize o arquivo `cache_data.json` no repositório
+4. Faça commit e push das alterações
+
+## Estrutura de Arquivos
 
 ```
+Emendas/
 ├── index.html          # Aplicação principal
-├── .github/
-│   └── workflows/
-│       └── deploy.yml  # GitHub Actions para deploy
-└── README.md          # Documentação
+├── cache_data.json     # Cache comunitário (fallback final)
+└── README.md          # Este arquivo
 ```
 
-## 🚀 Deploy
+## Tecnologias
 
-O deploy é automático via GitHub Actions:
+- React 18 (via CDN)
+- SheetJS (exportação Excel)
+- API Transferegov.br
+- LocalStorage/SessionStorage para cache
+- Sistema de proxy CORS automático
 
-1. Push para a branch configurada
-2. GitHub Actions constrói e publica no GitHub Pages
-3. Site disponível em: `https://[usuario].github.io/[repositorio]`
+## Como Usar
 
-## 💻 Uso Local
+1. Abra `index.html` em um navegador moderno
+2. O sistema carregará automaticamente os dados do ano configurado
+3. Use os botões para:
+   - **Consultar**: Buscar dados atualizados da API
+   - **Excel**: Exportar dados para planilha
+   - **Cache ON/OFF**: Ativar/desativar uso de cache
+   - **Limpar Cache**: Remover caches locais e forçar nova consulta
 
-Basta abrir o arquivo `index.html` em um navegador moderno.
+## Resiliência
 
-## 🔧 Configuração
+O sistema tenta buscar dados na seguinte ordem:
+1. Cache de sessão (se < 30min)
+2. Cache persistente local (se < 7 dias)
+3. API Transferegov.br (com múltiplos proxies)
+4. Cache comunitário do GitHub
 
-O sistema está pré-configurado para:
-- **CNPJ**: 27.080.530/0001-43 (SEFAZ-ES)
-- **Ano padrão**: 2025
-- **Proxy**: CorsProxy.io (com fallback para AllOrigins)
+Isso garante que o sistema funcione mesmo com instabilidades temporárias da API.
 
-## 📝 Notas
-
-- Dados atualizados D+1 pela API do Transferegov
-- Cache de sessão válido por 30 minutos
-- Suporte a múltiplos proxies CORS para maior confiabilidade
-
-## 🏛️ Desenvolvido por
+## Desenvolvido por
 
 Tesouro Estadual | SEFAZ-ES
-
-## 📄 Licença
-
-Sistema de uso interno governamental.
