@@ -233,6 +233,7 @@
             border-radius: 8px;
             margin-bottom: 20px;
             border: 1px solid #991b1b;
+            white-space: pre-line;
         }
         
         .warning {
@@ -455,6 +456,182 @@
             color: #6b7280;
             margin-top: 10px;
         }
+
+        .progress-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            height: 30px;
+            position: relative;
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e5e5e5;
+            font-weight: 600;
+            font-size: 12px;
+            z-index: 1;
+        }
+
+        /* Responsividade Mobile */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .logo-section {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .header-title h1 {
+                font-size: 18px;
+            }
+
+            .header-title p {
+                font-size: 12px;
+            }
+
+            .container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            .control-group input,
+            .control-group select {
+                width: 100% !important;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-card .value {
+                font-size: 22px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+                white-space: nowrap;
+            }
+
+            th {
+                font-size: 10px;
+            }
+
+            .status-badge {
+                font-size: 9px;
+                padding: 3px 8px;
+            }
+
+            .info-banner {
+                padding: 12px 15px;
+            }
+
+            .info-banner-title {
+                font-size: 14px;
+            }
+
+            .info-banner-text {
+                font-size: 12px;
+            }
+
+            .nota-box {
+                padding: 12px;
+                font-size: 12px;
+            }
+
+            .footer {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-title h1 {
+                font-size: 16px;
+            }
+
+            .logo {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .stats {
+                margin-bottom: 20px;
+            }
+
+            .stat-card h3 {
+                font-size: 10px;
+            }
+
+            .stat-card .value {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -487,16 +664,15 @@
             const [data, setData] = useState(null);
             const [cnpj] = useState('27080530000143');
             const [ano, setAno] = useState('2025');
-            const [useCache, setUseCache] = useState(false);
-            const [proxyOption, setProxyOption] = useState('corsproxy');
-            
-            // Lista de proxies CORS para fallback
-            const corsProxies = {
-                'corsproxy': 'https://corsproxy.io/?',
-                'allorigins': 'https://api.allorigins.win/raw?url=',
-                'corsanywhere': 'https://cors-anywhere.herokuapp.com/',
-                'direct': '' // Tentativa direta sem proxy
-            };
+            const [useCache, setUseCache] = useState(true); // Cache ativado por padrão
+            const [progress, setProgress] = useState({ current: 0, total: 0 });
+
+            // Lista de proxies CORS para fallback automático (ordem de prioridade)
+            const corsProxies = [
+                { name: 'corsproxy', url: 'https://corsproxy.io/?' },
+                { name: 'allorigins', url: 'https://api.allorigins.win/raw?url=' },
+                { name: 'direct', url: '' } // Tentativa direta sem proxy
+            ];
             
             const formatCurrency = (value) => {
                 if (!value) return 'R$ 0,00';
@@ -552,9 +728,11 @@
                 return `https://especiais.transferegov.sistema.gov.br/transferencia-especial/plano-acao/detalhe/${idPlano}/dados-basicos`;
             };
             
-            // Cache management
+            // Cache management - Sistema de múltiplas camadas
             const getCacheKey = () => `transferegov_${cnpj}_${ano}`;
-            
+            const getPersistentCacheKey = () => `transferegov_persistent_${cnpj}_${ano}`;
+
+            // Salva em ambos: sessionStorage (temporário) e localStorage (persistente)
             const saveToCache = (data) => {
                 try {
                     const cacheData = {
@@ -563,21 +741,44 @@
                         cnpj: cnpj,
                         ano: ano
                     };
+
+                    // Cache de sessão (30 minutos)
                     sessionStorage.setItem(getCacheKey(), JSON.stringify(cacheData));
+
+                    // Cache persistente (7 dias) - backup para quando API estiver indisponível
+                    localStorage.setItem(getPersistentCacheKey(), JSON.stringify(cacheData));
+
+                    console.log('Dados salvos em cache (sessão + persistente)');
                 } catch (e) {
                     console.error('Erro ao salvar no cache:', e);
                 }
             };
-            
+
+            // Tenta carregar do cache com fallback: sessionStorage → localStorage
             const loadFromCache = () => {
                 try {
-                    const cached = sessionStorage.getItem(getCacheKey());
-                    if (cached) {
-                        const cacheData = JSON.parse(cached);
+                    // Primeiro tenta cache da sessão (mais recente)
+                    const sessionCached = sessionStorage.getItem(getCacheKey());
+                    if (sessionCached) {
+                        const cacheData = JSON.parse(sessionCached);
                         const now = new Date().getTime();
                         const cacheAge = (now - cacheData.timestamp) / 1000 / 60; // em minutos
-                        
-                        if (cacheAge < 30) { // Cache válido por 30 minutos
+
+                        if (cacheAge < 30) { // Cache de sessão válido por 30 minutos
+                            console.log('Usando cache de sessão');
+                            return cacheData;
+                        }
+                    }
+
+                    // Se cache de sessão expirou, tenta localStorage (persistente)
+                    const persistentCached = localStorage.getItem(getPersistentCacheKey());
+                    if (persistentCached) {
+                        const cacheData = JSON.parse(persistentCached);
+                        const now = new Date().getTime();
+                        const cacheAge = (now - cacheData.timestamp) / 1000 / 60 / 60 / 24; // em dias
+
+                        if (cacheAge < 7) { // Cache persistente válido por 7 dias
+                            console.log('Usando cache persistente (backup)');
                             return cacheData;
                         }
                     }
@@ -586,33 +787,68 @@
                 }
                 return null;
             };
-            
+
             const clearCache = () => {
                 try {
                     sessionStorage.removeItem(getCacheKey());
+                    localStorage.removeItem(getPersistentCacheKey());
                     setSuccess('Cache limpo com sucesso!');
                     setTimeout(() => setSuccess(null), 3000);
                 } catch (e) {
                     console.error('Erro ao limpar cache:', e);
                 }
             };
-            
-            const fetchWithProxy = async (url, proxyUrl) => {
-                const fullUrl = proxyUrl ? proxyUrl + encodeURIComponent(url) : url;
-                
-                const response = await fetch(fullUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
+
+            // Função para carregar dados do cache GitHub (fallback comunitário)
+            const loadFromGitHubCache = async () => {
+                try {
+                    console.log('Tentando carregar cache do GitHub...');
+                    const response = await fetch('./cache_data.json?' + new Date().getTime()); // Cache bust
+                    if (response.ok) {
+                        const githubCache = await response.json();
+                        if (githubCache && githubCache.planos && githubCache.planos.length > 0) {
+                            console.log('Cache do GitHub carregado com sucesso');
+                            return githubCache;
+                        }
                     }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                } catch (err) {
+                    console.error('Erro ao carregar cache do GitHub:', err);
                 }
-                
-                return await response.json();
+                return null;
+            };
+            
+            // Sistema de fetch com fallback automático entre proxies
+            const fetchWithAutoProxy = async (url) => {
+                let lastError = null;
+
+                // Tenta cada proxy em sequência
+                for (const proxy of corsProxies) {
+                    try {
+                        const fullUrl = proxy.url ? proxy.url + encodeURIComponent(url) : url;
+
+                        const response = await fetch(fullUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        // Se chegou aqui, sucesso! Retorna os dados
+                        return await response.json();
+                    } catch (err) {
+                        console.log(`Falha com proxy ${proxy.name}, tentando próximo...`);
+                        lastError = err;
+                        // Continua para o próximo proxy
+                    }
+                }
+
+                // Se chegou aqui, todos os proxies falharam
+                throw lastError || new Error('Todos os proxies falharam');
             };
             
             const fetchData = async (forceRefresh = false) => {
@@ -620,83 +856,88 @@
                 setError(null);
                 setWarning(null);
                 setSuccess(null);
-                
-                // Tentar carregar do cache primeiro
+
+                // Tentar carregar do cache primeiro (se não for refresh forçado)
                 if (!forceRefresh && useCache) {
                     const cached = loadFromCache();
                     if (cached) {
+                        const cacheAge = (new Date().getTime() - cached.timestamp) / 1000 / 60; // minutos
+                        const cacheType = cacheAge < 30 ? 'sessão' : 'persistente';
                         setData(cached.data);
-                        setSuccess(`Dados carregados do cache (${new Date(cached.timestamp).toLocaleTimeString('pt-BR')})`);
+                        setSuccess(`Dados carregados do cache ${cacheType} (${new Date(cached.timestamp).toLocaleTimeString('pt-BR')})`);
                         setLoading(false);
                         return;
                     }
                 }
                 
                 try {
-                    const proxyUrl = corsProxies[proxyOption];
                     const baseUrl = 'https://api.transferegov.gestao.gov.br/transferenciasespeciais';
-                    
-                    // Buscar os planos de ação
+
+                    // Buscar os planos de ação (com fallback automático de proxies)
                     const planosUrl = `${baseUrl}/plano_acao_especial?cnpj_beneficiario_plano_acao=eq.${cnpj}&ano_plano_acao=eq.${ano}`;
-                    console.log('Consultando planos de ação com proxy:', proxyOption);
-                    
-                    let planos;
-                    try {
-                        planos = await fetchWithProxy(planosUrl, proxyUrl);
-                    } catch (err) {
-                        console.error(`Erro com proxy ${proxyOption}:`, err);
-                        
-                        // Tentar com proxy alternativo
-                        if (proxyOption === 'corsproxy') {
-                            console.log('Tentando proxy alternativo...');
-                            planos = await fetchWithProxy(planosUrl, corsProxies['allorigins']);
-                            setWarning('Usando proxy alternativo. A conexão pode estar mais lenta.');
-                        } else {
-                            throw err;
-                        }
-                    }
-                    
+                    console.log('Consultando planos de ação...');
+
+                    const planos = await fetchWithAutoProxy(planosUrl);
                     console.log(`Encontrados ${planos.length} planos de ação`);
-                    
-                    // Limitar requisições paralelas para evitar sobrecarga
-                    const batchSize = 3;
+
+                    // Limitar requisições paralelas para evitar sobrecarga - OTIMIZADO
+                    const batchSize = 10; // Aumentado de 3 para 10 para melhor performance
                     const planosCompletos = [];
-                    
+                    setProgress({ current: 0, total: planos.length });
+
                     for (let i = 0; i < planos.length; i += batchSize) {
                         const batch = planos.slice(i, i + batchSize);
                         const batchResults = await Promise.all(
                             batch.map(async (plano) => {
                                 try {
-                                    // Buscar apenas empenhos e executores (menos requisições)
-                                    const [empenhos, executores] = await Promise.all([
-                                        fetchWithProxy(
-                                            `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                            proxyUrl
-                                        ).catch(() => []),
-                                        fetchWithProxy(
-                                            `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`,
-                                            proxyUrl
-                                        ).catch(() => [])
-                                    ]);
-                                    
+                                    // Buscar empenhos
+                                    const empenhos = await fetchWithAutoProxy(
+                                        `${baseUrl}/empenho_especial?id_plano_acao=eq.${plano.id_plano_acao}`
+                                    ).catch(() => []);
+
+                                    // Para cada empenho, buscar documentos hábeis (valores liquidados/pagos)
+                                    let valorLiberado = 0;
+                                    const documentosHabeis = [];
+
+                                    for (const empenho of empenhos) {
+                                        const dhs = await fetchWithAutoProxy(
+                                            `${baseUrl}/documento_habil_especial?id_empenho=eq.${empenho.id_empenho}`
+                                        ).catch(() => []);
+
+                                        documentosHabeis.push(...dhs);
+
+                                        // Somar valores dos documentos hábeis (valores liberados/pagos)
+                                        dhs.forEach(dh => {
+                                            valorLiberado += parseFloat(dh.valor_dh || 0);
+                                        });
+                                    }
+
+                                    // Buscar executores do plano de ação
+                                    const executores = await fetchWithAutoProxy(
+                                        `${baseUrl}/executor_especial?id_plano_acao=eq.${plano.id_plano_acao}`
+                                    ).catch(() => []);
+
                                     return {
                                         ...plano,
                                         empenhos,
-                                        executores,
-                                        valorLiberado: 0 // Simplificado por enquanto
+                                        documentosHabeis,
+                                        valorLiberado,
+                                        executores
                                     };
                                 } catch (err) {
                                     console.error('Erro ao buscar dados do plano:', err);
                                     return {
                                         ...plano,
                                         empenhos: [],
-                                        executores: [],
-                                        valorLiberado: 0
+                                        documentosHabeis: [],
+                                        valorLiberado: 0,
+                                        executores: []
                                     };
                                 }
                             })
                         );
                         planosCompletos.push(...batchResults);
+                        setProgress({ current: Math.min(i + batchSize, planos.length), total: planos.length });
                     }
                     
                     const resultData = { planos: planosCompletos };
@@ -708,15 +949,35 @@
                     
                 } catch (err) {
                     console.error('Erro detalhado:', err);
-                    
-                    // Tentar carregar do cache em caso de erro
+
+                    // Sistema de fallback em múltiplas camadas
+                    // 1. Tentar cache local (sessionStorage/localStorage)
                     const cached = loadFromCache();
                     if (cached) {
                         setData(cached.data);
-                        setWarning(`Erro na conexão. Usando dados do cache de ${new Date(cached.timestamp).toLocaleString('pt-BR')}`);
-                    } else {
-                        setError(`Erro: ${err.message}. Tente novamente ou mude o proxy nas opções.`);
+                        const cacheAge = (new Date().getTime() - cached.timestamp) / 1000 / 60; // minutos
+                        const cacheType = cacheAge < 30 ? 'sessão' : 'persistente';
+                        const cacheDate = new Date(cached.timestamp).toLocaleString('pt-BR');
+                        setWarning(`⚠️ API temporariamente indisponível. Exibindo dados do cache ${cacheType} (${cacheDate}).`);
+                        setLoading(false);
+                        return;
                     }
+
+                    // 2. Tentar cache do GitHub
+                    const githubCache = await loadFromGitHubCache();
+                    if (githubCache && githubCache.planos && githubCache.planos.length > 0) {
+                        setData({ planos: githubCache.planos });
+                        const cacheDate = githubCache.timestamp ? new Date(githubCache.timestamp).toLocaleString('pt-BR') : 'data desconhecida';
+                        setWarning(`⚠️ API temporariamente indisponível. Exibindo dados do último backup comunitário (${cacheDate}).`);
+
+                        // Salvar no cache local também
+                        saveToCache({ planos: githubCache.planos });
+                        setLoading(false);
+                        return;
+                    }
+
+                    // 3. Nenhum fallback disponível
+                    setError(`❌ API temporariamente indisponível e nenhum dado em cache disponível.\n\nPossíveis causas:\n• API do Transferegov pode estar fora do ar\n• Não há dados disponíveis para ${ano}\n• Problema temporário de conexão\n\nTente novamente mais tarde ou altere o ano da consulta.`);
                 } finally {
                     setLoading(false);
                 }
@@ -730,7 +991,22 @@
                 data.planos.forEach(plano => {
                     const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
                     const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
-                    
+                    const valorTotal = valorCusteio + valorInvestimento;
+                    const valorLiberadoTotal = parseFloat(plano.valorLiberado || 0);
+
+                    // Distribuir valor liberado proporcionalmente entre custeio e investimento
+                    const valorLiberadoCusteio = valorTotal > 0 ? (valorLiberadoTotal * valorCusteio / valorTotal) : 0;
+                    const valorLiberadoInvestimento = valorTotal > 0 ? (valorLiberadoTotal * valorInvestimento / valorTotal) : 0;
+
+                    // Calcular valores empenhados por categoria
+                    const valorEmpenhadoCusteio = plano.empenhos ? plano.empenhos
+                        .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                        .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0;
+
+                    const valorEmpenhadoInvestimento = plano.empenhos ? plano.empenhos
+                        .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                        .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0;
+
                     if (valorCusteio > 0) {
                         mainTableData.push({
                             'Código Plano': plano.codigo_plano_acao || '-',
@@ -742,12 +1018,11 @@
                             'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
                             'Situação': plano.situacao_plano_acao || 'Aguardando',
                             'Valor Total': valorCusteio,
-                            'Valor Empenhado': plano.empenhos ? plano.empenhos
-                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                            'Valor Empenhado': valorEmpenhadoCusteio,
+                            'Valor Liberado': valorLiberadoCusteio
                         });
                     }
-                    
+
                     if (valorInvestimento > 0) {
                         mainTableData.push({
                             'Código Plano': plano.codigo_plano_acao || '-',
@@ -759,18 +1034,62 @@
                             'Conta': `${plano.numero_conta_plano_acao || ''}${plano.dv_conta_plano_acao ? `-${plano.dv_conta_plano_acao}` : ''}`,
                             'Situação': plano.situacao_plano_acao || 'Aguardando',
                             'Valor Total': valorInvestimento,
-                            'Valor Empenhado': plano.empenhos ? plano.empenhos
-                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
-                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0) : 0
+                            'Valor Empenhado': valorEmpenhadoInvestimento,
+                            'Valor Liberado': valorLiberadoInvestimento
                         });
                     }
                 });
                 
+                // Preparar dados da tabela de executores
+                const executoresTableData = [];
+                data.planos.forEach(plano => {
+                    if (plano.executores && plano.executores.length > 0) {
+                        plano.executores.forEach(executor => {
+                            const valorCusteio = parseFloat(executor.vl_custeio_executor || 0);
+                            const valorInvestimento = parseFloat(executor.vl_investimento_executor || 0);
+
+                            if (valorCusteio > 0) {
+                                executoresTableData.push({
+                                    'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                                    'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                                    'Executor': executor.nome_executor || '-',
+                                    'CNPJ Executor': executor.cnpj_executor || '-',
+                                    'Modalidade': 'CUSTEIO',
+                                    'Valor': valorCusteio,
+                                    'Banco': executor.nome_banco_executor || '-',
+                                    'Agência': `${executor.numero_agencia_executor || ''}${executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}`,
+                                    'Conta': `${executor.numero_conta_executor || ''}${executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}`
+                                });
+                            }
+
+                            if (valorInvestimento > 0) {
+                                executoresTableData.push({
+                                    'Nº Emenda': plano.numero_emenda_parlamentar_plano_acao || '-',
+                                    'Parlamentar': plano.nome_parlamentar_emenda_plano_acao || '-',
+                                    'Executor': executor.nome_executor || '-',
+                                    'CNPJ Executor': executor.cnpj_executor || '-',
+                                    'Modalidade': 'INVESTIMENTO',
+                                    'Valor': valorInvestimento,
+                                    'Banco': executor.nome_banco_executor || '-',
+                                    'Agência': `${executor.numero_agencia_executor || ''}${executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}`,
+                                    'Conta': `${executor.numero_conta_executor || ''}${executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}`
+                                });
+                            }
+                        });
+                    }
+                });
+
                 // Criar workbook
                 const wb = XLSX.utils.book_new();
                 const ws1 = XLSX.utils.json_to_sheet(mainTableData);
                 XLSX.utils.book_append_sheet(wb, ws1, "Emendas Parlamentares");
-                
+
+                // Adicionar aba de executores se houver dados
+                if (executoresTableData.length > 0) {
+                    const ws2 = XLSX.utils.json_to_sheet(executoresTableData);
+                    XLSX.utils.book_append_sheet(wb, ws2, "Executores Finais");
+                }
+
                 // Gerar arquivo
                 const fileName = `transferencias_especiais_${cnpj}_${ano}_${new Date().toISOString().split('T')[0]}.xlsx`;
                 XLSX.writeFile(wb, fileName);
@@ -823,10 +1142,11 @@
                         <div className="info-banner">
                             <div className="info-banner-icon">ℹ️</div>
                             <div className="info-banner-content">
-                                <div className="info-banner-title">Informações Importantes</div>
+                                <div className="info-banner-title">Sobre os Dados</div>
                                 <div className="info-banner-text">
-                                    Os dados são obtidos da API do Transferegov.br com atualização D+1. 
-                                    Se houver erro de conexão, tente trocar o proxy ou usar dados em cache.
+                                    Dados obtidos da API Transferegov.br (atualização D+1).
+                                    O sistema mantém backups automáticos em múltiplas camadas para garantir acesso contínuo,
+                                    mesmo quando a API estiver temporariamente indisponível.
                                 </div>
                             </div>
                         </div>
@@ -834,39 +1154,26 @@
                         <div className="controls">
                             <div className="control-group">
                                 <label>CNPJ Beneficiário</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={formatCNPJ(cnpj)}
                                     disabled
                                     style={{ width: '200px' }}
                                 />
                             </div>
-                            
+
                             <div className="control-group">
                                 <label>Ano</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={ano}
                                     onChange={(e) => setAno(e.target.value)}
                                     style={{ width: '100px' }}
                                 />
                             </div>
-                            
-                            <div className="control-group">
-                                <label>Proxy CORS</label>
-                                <select 
-                                    value={proxyOption}
-                                    onChange={(e) => setProxyOption(e.target.value)}
-                                    style={{ width: '150px' }}
-                                >
-                                    <option value="corsproxy">CorsProxy.io</option>
-                                    <option value="allorigins">AllOrigins</option>
-                                    <option value="direct">Direto (sem proxy)</option>
-                                </select>
-                            </div>
-                            
-                            <button 
-                                className="btn" 
+
+                            <button
+                                className="btn"
                                 onClick={() => fetchData(true)}
                                 disabled={loading}
                             >
@@ -897,8 +1204,8 @@
                                     >
                                         📊 Excel
                                     </button>
-                                    <button 
-                                        className="btn btn-warning" 
+                                    <button
+                                        className="btn btn-warning"
                                         onClick={clearCache}
                                     >
                                         🗑️ Limpar Cache
@@ -925,6 +1232,18 @@
                             </div>
                         )}
                         
+                        {loading && progress.total > 0 && (
+                            <div className="progress-container">
+                                <div
+                                    className="progress-bar"
+                                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                ></div>
+                                <div className="progress-text">
+                                    Processando {progress.current} de {progress.total} planos...
+                                </div>
+                            </div>
+                        )}
+
                         {loading && (
                             <div className="loading">
                                 <div className="loading-spinner"></div>
@@ -973,6 +1292,7 @@
                                                 <th>Situação</th>
                                                 <th>Valor Total</th>
                                                 <th>Valor Empenhado</th>
+                                                <th>Valor Liberado</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -980,8 +1300,25 @@
                                                 data.planos.map((plano, index) => {
                                                     const valorCusteio = parseFloat(plano.valor_custeio_plano_acao || 0);
                                                     const valorInvestimento = parseFloat(plano.valor_investimento_plano_acao || 0);
+                                                    const valorTotal = valorCusteio + valorInvestimento;
+                                                    const valorLiberadoTotal = parseFloat(plano.valorLiberado || 0);
                                                     const urlPlano = buildPlanoAcaoUrl(plano.codigo_plano_acao);
-                                                    
+
+                                                    // Distribuir valor liberado proporcionalmente
+                                                    const valorLiberadoCusteio = valorTotal > 0 ? (valorLiberadoTotal * valorCusteio / valorTotal) : 0;
+                                                    const valorLiberadoInvestimento = valorTotal > 0 ? (valorLiberadoTotal * valorInvestimento / valorTotal) : 0;
+
+                                                    // Calcular valores empenhados por categoria
+                                                    const valorEmpenhadoCusteio = plano.empenhos
+                                                        ? plano.empenhos.filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
+                                                            .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                        : 0;
+
+                                                    const valorEmpenhadoInvestimento = plano.empenhos
+                                                        ? plano.empenhos.filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
+                                                            .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
+                                                        : 0;
+
                                                     const rows = [];
                                                     
                                                     // Linha para CUSTEIO
@@ -1022,15 +1359,8 @@
                                                                     </span>
                                                                 </td>
                                                                 <td className="currency">{formatCurrency(valorCusteio)}</td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.empenhos 
-                                                                            ? plano.empenhos
-                                                                                .filter(emp => emp.categoria_despesa_empenho === 'CUSTEIO')
-                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorEmpenhadoCusteio)}</td>
+                                                                <td className="currency">{formatCurrency(valorLiberadoCusteio)}</td>
                                                             </tr>
                                                         );
                                                     }
@@ -1073,15 +1403,8 @@
                                                                     </span>
                                                                 </td>
                                                                 <td className="currency">{formatCurrency(valorInvestimento)}</td>
-                                                                <td className="currency">
-                                                                    {formatCurrency(
-                                                                        plano.empenhos 
-                                                                            ? plano.empenhos
-                                                                                .filter(emp => emp.categoria_despesa_empenho === 'INVESTIMENTO')
-                                                                                .reduce((sum, emp) => sum + parseFloat(emp.valor_empenho || 0), 0)
-                                                                            : 0
-                                                                    )}
-                                                                </td>
+                                                                <td className="currency">{formatCurrency(valorEmpenhadoInvestimento)}</td>
+                                                                <td className="currency">{formatCurrency(valorLiberadoInvestimento)}</td>
                                                             </tr>
                                                         );
                                                     }
@@ -1090,7 +1413,7 @@
                                                 })
                                             ) : (
                                                 <tr>
-                                                    <td colSpan="10" className="no-data">
+                                                    <td colSpan="11" className="no-data">
                                                         Nenhuma transferência encontrada para este CNPJ no ano especificado
                                                     </td>
                                                 </tr>
@@ -1101,11 +1424,136 @@
                                                 <td colSpan="8">VALOR TOTAL</td>
                                                 <td className="currency">{formatCurrency(totals.totalGeral)}</td>
                                                 <td className="currency">{formatCurrency(totals.totalEmpenhado)}</td>
+                                                <td className="currency">{formatCurrency(totals.totalLiberado)}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
-                                
+
+                                <h2 className="section-title">Executores Finais dos Recursos</h2>
+
+                                <div className="nota-box">
+                                    <strong>ℹ️ Sobre os Executores:</strong>
+                                    <div style={{ marginTop: '8px' }}>
+                                        Os executores finais são órgãos, secretarias e entidades responsáveis pela execução finalística das políticas públicas financiadas pelas emendas parlamentares.
+                                        Após o recurso ser transferido para a conta do ente público (Estado/Município), ele é repassado para essas instituições que implementam efetivamente os projetos.
+                                    </div>
+                                </div>
+
+                                <div className="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Nº Emenda</th>
+                                                <th>Parlamentar</th>
+                                                <th>Executor</th>
+                                                <th>CNPJ</th>
+                                                <th>Modalidade</th>
+                                                <th>Valor</th>
+                                                <th>Banco</th>
+                                                <th>Agência</th>
+                                                <th>Conta</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(() => {
+                                                const executorRows = [];
+                                                let totalExecutores = 0;
+
+                                                data.planos.forEach((plano, planoIdx) => {
+                                                    if (plano.executores && plano.executores.length > 0) {
+                                                        plano.executores.forEach((executor, execIdx) => {
+                                                            const valorCusteio = parseFloat(executor.vl_custeio_executor || 0);
+                                                            const valorInvestimento = parseFloat(executor.vl_investimento_executor || 0);
+
+                                                            // Linha para CUSTEIO
+                                                            if (valorCusteio > 0) {
+                                                                totalExecutores += valorCusteio;
+                                                                executorRows.push(
+                                                                    <tr key={`exec-${planoIdx}-${execIdx}-custeio`}>
+                                                                        <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                        <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                        <td>
+                                                                            <div className="executor-info">
+                                                                                <span className="executor-name">{executor.nome_executor || '-'}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="executor-cnpj">{formatCNPJ(executor.cnpj_executor)}</span>
+                                                                        </td>
+                                                                        <td>CUSTEIO</td>
+                                                                        <td className="currency">{formatCurrency(valorCusteio)}</td>
+                                                                        <td>{executor.nome_banco_executor || '-'}</td>
+                                                                        <td>
+                                                                            {executor.numero_agencia_executor}
+                                                                            {executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}
+                                                                        </td>
+                                                                        <td>
+                                                                            {executor.numero_conta_executor}
+                                                                            {executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+
+                                                            // Linha para INVESTIMENTO
+                                                            if (valorInvestimento > 0) {
+                                                                totalExecutores += valorInvestimento;
+                                                                executorRows.push(
+                                                                    <tr key={`exec-${planoIdx}-${execIdx}-investimento`}>
+                                                                        <td>{plano.numero_emenda_parlamentar_plano_acao || '-'}</td>
+                                                                        <td>{plano.nome_parlamentar_emenda_plano_acao || '-'}</td>
+                                                                        <td>
+                                                                            <div className="executor-info">
+                                                                                <span className="executor-name">{executor.nome_executor || '-'}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="executor-cnpj">{formatCNPJ(executor.cnpj_executor)}</span>
+                                                                        </td>
+                                                                        <td>INVESTIMENTO</td>
+                                                                        <td className="currency">{formatCurrency(valorInvestimento)}</td>
+                                                                        <td>{executor.nome_banco_executor || '-'}</td>
+                                                                        <td>
+                                                                            {executor.numero_agencia_executor}
+                                                                            {executor.dv_agencia_executor ? `-${executor.dv_agencia_executor}` : ''}
+                                                                        </td>
+                                                                        <td>
+                                                                            {executor.numero_conta_executor}
+                                                                            {executor.dv_conta_executor ? `-${executor.dv_conta_executor}` : ''}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+                                                        });
+                                                    }
+                                                });
+
+                                                if (executorRows.length === 0) {
+                                                    return (
+                                                        <tr>
+                                                            <td colSpan="9" className="no-data">
+                                                                Nenhum executor encontrado para os planos de ação
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <>
+                                                        {executorRows}
+                                                        <tr style={{ fontWeight: 'bold', backgroundColor: '#252525' }}>
+                                                            <td colSpan="5">VALOR TOTAL DOS EXECUTORES</td>
+                                                            <td className="currency">{formatCurrency(totalExecutores)}</td>
+                                                            <td colSpan="3"></td>
+                                                        </tr>
+                                                    </>
+                                                );
+                                            })()}
+                                        </tbody>
+                                    </table>
+                                </div>
+
                                 <div className="footer">
                                     <p>Sistema desenvolvido pelo Tesouro Estadual | SEFAZ-ES</p>
                                     <p>Dados da API Transferegov.br - Atualização: D+1</p>
