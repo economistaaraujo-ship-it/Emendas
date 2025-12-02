@@ -1533,7 +1533,14 @@
                                                     return (
                                                         <tr>
                                                             <td colSpan="9" className="no-data">
-                                                                Nenhum executor encontrado para os planos de ação
+                                                                <div style={{ marginBottom: '10px' }}>
+                                                                    <strong>ℹ️ Dados de Executores Temporariamente Indisponíveis</strong>
+                                                                </div>
+                                                                <div style={{ fontSize: '14px', color: '#9ca3af' }}>
+                                                                    A API do Transferegov.br está atualmente retornando dados vazios.
+                                                                    Os dados de executores estarão disponíveis assim que a API normalizar.
+                                                                    O sistema verifica automaticamente a cada consulta.
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );
